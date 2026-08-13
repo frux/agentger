@@ -15,6 +15,8 @@ if (!existsSync(tsc) || !existsSync(nodeTypes)) {
   );
   execFileSync(npm, [
     "install",
+    "--prefix",
+    projectRoot,
     "--ignore-scripts",
     "--no-save",
     "--package-lock=false",
