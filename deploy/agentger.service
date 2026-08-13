@@ -1,5 +1,5 @@
 [Unit]
-Description=Telegram to Codex app-server bridge
+Description=Agentger Telegram UI for Codex
 After=network-online.target
 Wants=network-online.target
 
@@ -7,9 +7,9 @@ Wants=network-online.target
 Type=simple
 User=codex
 Group=codex
-WorkingDirectory=/opt/telegram-codex
-EnvironmentFile=/etc/telegram-codex.env
-ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning /opt/telegram-codex/dist/src/index.js
+WorkingDirectory=/var/lib/agentger
+EnvironmentFile=/etc/agentger.env
+ExecStart=/usr/bin/agentger start
 Restart=on-failure
 RestartSec=5s
 TimeoutStopSec=20s

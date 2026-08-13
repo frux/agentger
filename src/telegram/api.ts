@@ -17,6 +17,11 @@ export interface TelegramMessage {
   chat: TelegramChat;
   from?: TelegramUser;
   text?: string;
+  forum_topic_created?: {
+    name: string;
+    icon_color: number;
+    icon_custom_emoji_id?: string;
+  };
 }
 
 export interface TelegramCallbackQuery {

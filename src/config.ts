@@ -13,6 +13,7 @@ export interface Config {
   databasePath: string;
   allowedProjectRoots: string[];
   projects: ProjectSeed[];
+  defaultProject: string | null;
   reservedTopics: ReservedTopicSeed[];
   codexBinary: string;
   codexApprovalPolicy: AskForApproval;
@@ -119,6 +120,7 @@ export function loadConfig(): Config {
     databasePath: resolve(process.env.DATABASE_PATH ?? "./data/bot.sqlite"),
     allowedProjectRoots: parseRoots(required("ALLOWED_PROJECT_ROOTS")),
     projects: parseProjects(process.env.PROJECTS),
+    defaultProject: process.env.DEFAULT_PROJECT?.trim() || null,
     reservedTopics: parseReservedTopics(process.env.RESERVED_TOPICS),
     codexBinary: process.env.CODEX_BINARY?.trim() || "codex",
     codexApprovalPolicy: parseApprovalPolicy(process.env.CODEX_APPROVAL_POLICY),

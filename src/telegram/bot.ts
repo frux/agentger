@@ -8,6 +8,9 @@ import type { TelegramCommands } from "./commands.js";
 import { TurnRenderer } from "./renderer.js";
 import type { TopicRouter } from "./router.js";
 import { StreamingMessage } from "./streaming-message.js";
+import type { TopicProvisioner } from "./topics.js";
+import { isExplicitBindingCommand } from "./commands.js";
+import type { TopicBinding } from "../db.js";
 
 class TelegramTurnSink implements TurnSink {
   private readonly renderer = new TurnRenderer();
@@ -50,6 +53,7 @@ export class TelegramBot {
     private readonly telegram: TelegramApi,
     private readonly commands: TelegramCommands,
     private readonly approvals: ApprovalManager,
+    private readonly topics: TopicProvisioner,
     private readonly router: TopicRouter,
     private readonly sessions: SessionManager,
     private readonly options: TelegramBotOptions,
@@ -94,24 +98,34 @@ export class TelegramBot {
     }
     const message = update.message;
     if (!message?.from || !this.options.allowedUserIds.has(message.from.id)) return;
+    const route = this.router.route(message.chat.id, message.message_thread_id);
+    if (route.type === "reserved") return;
+    if (message.forum_topic_created) {
+      await this.topics.ensure(message, true);
+      return;
+    }
+    if (isExplicitBindingCommand(message.text)) {
+      await this.commands.handle(message);
+      return;
+    }
+    const binding = await this.topics.ensure(message, false);
+    if (!binding) return;
     if (await this.commands.handle(message)) return;
-    await this.handleText(message);
+    await this.handleText(message, binding);
   }
 
-  private async handleText(message: TelegramMessage): Promise<void> {
+  private async handleText(message: TelegramMessage, binding: TopicBinding): Promise<void> {
     const text = message.text?.trim();
     if (!text) return;
-    const route = this.router.route(message.chat.id, message.message_thread_id);
-    if (route.type !== "codex") return;
     const streaming = new StreamingMessage(
       this.telegram,
-      route.binding.telegramChatId,
-      route.binding.telegramThreadId,
+      binding.telegramChatId,
+      binding.telegramThreadId,
       this.options.streamUpdateIntervalMs,
     );
     await streaming.start();
     const sink = new TelegramTurnSink(streaming);
-    const clientUserMessageId = `tg:${message.chat.id}:${route.binding.telegramThreadId}:${message.message_id}`;
-    void this.sessions.enqueue(route.binding, text, clientUserMessageId, sink).catch(() => undefined);
+    const clientUserMessageId = `tg:${message.chat.id}:${binding.telegramThreadId}:${message.message_id}`;
+    void this.sessions.enqueue(binding, text, clientUserMessageId, sink).catch(() => undefined);
   }
 }

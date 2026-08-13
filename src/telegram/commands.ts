@@ -16,6 +16,12 @@ function parseCommand(text: string): ParsedCommand | null {
   return { name: match[1].toLowerCase(), argument: match[2]?.trim() ?? "" };
 }
 
+export function isExplicitBindingCommand(text: string | undefined): boolean {
+  if (!text) return false;
+  const command = parseCommand(text);
+  return command?.name === "codex-init" || command?.name === "codex-attach";
+}
+
 function userMessageText(item: Extract<ThreadItem, { type: "userMessage" }>): string {
   return item.content.flatMap((content) => content.type === "text" ? [content.text] : []).join("\n");
 }
@@ -183,7 +189,7 @@ export class TelegramCommands {
     if (!binding) return this.reply(message, "Этот topic не подключён к Codex.");
     this.db.deleteBinding(binding.telegramChatId, binding.telegramThreadId);
     this.sessions.detach(binding.codexThreadId);
-    await this.reply(message, `✅ Telegram binding удалён. Codex thread ${binding.codexThreadId} сохранён.`);
+    await this.reply(message, `✅ Binding удалён. Codex thread ${binding.codexThreadId} сохранён. Следующее сообщение создаст новую session.`);
   }
 
   private async diff(message: TelegramMessage): Promise<void> {
@@ -214,16 +220,18 @@ export class TelegramCommands {
 
   private help(message: TelegramMessage): Promise<void> {
     return this.reply(message, [
-      "Telegram ↔ Codex",
+      "Agentger",
       "",
-      "/codex-init <project> — создать thread и binding",
-      "/codex-attach <thread-id> — подключить существующий thread",
+      "Новый незарезервированный topic автоматически создаёт Codex session.",
+      "",
       "/codex-status — состояние",
       "/codex-stop — прервать активный turn",
       "/codex-diff — последний aggregated diff",
       "/codex-history — persisted history",
       "/codex-close — удалить только Telegram binding",
       "/projects — project aliases",
+      "/codex-init <project> — создать session в другом project",
+      "/codex-attach <thread-id> — подключить существующий thread",
       "/codex-help — помощь",
     ].join("\n"));
   }
