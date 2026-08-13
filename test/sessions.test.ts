@@ -109,3 +109,26 @@ test("interrupt targets only the active turn", async () => {
   assert.equal(await sessions.interrupt("thread-a"), false);
   db.close();
 });
+
+test("turn sink lifecycle marks processing, accepted input, and approval waits", async () => {
+  const client = new FakeSessionClient();
+  const db = new BridgeDatabase(":memory:");
+  const sessions = new SessionManager(client, db);
+  const lifecycle: string[] = [];
+  const lifecycleSink: TurnSink = {
+    onProcessingStarted() { lifecycle.push("processing"); },
+    onInputAccepted() { lifecycle.push("accepted"); },
+    setWaitingForUser(waiting) { lifecycle.push(waiting ? "waiting" : "resumed"); },
+    onNotification() {},
+    onError() {},
+  };
+  const running = sessions.enqueue(persistedBinding(db), "work", "tg-1", lifecycleSink);
+  await until(() => client.starts.length === 1);
+  assert.deepEqual(lifecycle, ["processing", "accepted"]);
+  sessions.setWaitingApproval("thread-a", true);
+  sessions.setWaitingApproval("thread-a", false);
+  assert.deepEqual(lifecycle, ["processing", "accepted", "waiting", "resumed"]);
+  client.complete("thread-a", "turn-1");
+  await running;
+  db.close();
+});

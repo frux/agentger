@@ -99,6 +99,7 @@ export class TelegramBot {
       {
         streamUpdateIntervalMs: this.options.streamUpdateIntervalMs,
         completionReactionCustomEmojiId: this.options.completionReactionCustomEmojiId,
+        inboundMessageId: message.message_id,
         logger: this.log,
       },
     );

@@ -5,14 +5,17 @@ import type { TurnSink } from "../sessions/manager.js";
 import type { TelegramReaction } from "./api.js";
 import { TurnRenderer, type TurnMessageUpdate } from "./renderer.js";
 import { StreamingMessage, type TelegramMessageEditor } from "./streaming-message.js";
+import { TypingIndicator, type ChatActionTelegram } from "./typing-indicator.js";
 
-export interface TurnTelegram extends TelegramMessageEditor {
+export interface TurnTelegram extends TelegramMessageEditor, ChatActionTelegram {
   setMessageReaction(chatId: number, messageId: number, reaction: TelegramReaction): Promise<true>;
 }
 
 export interface TelegramTurnSinkOptions {
   streamUpdateIntervalMs: number;
   completionReactionCustomEmojiId: string | null;
+  inboundMessageId: number;
+  typingRefreshIntervalMs?: number;
   logger?: Logger;
 }
 
@@ -21,7 +24,9 @@ export class TelegramTurnSink implements TurnSink {
   private readonly messages = new Map<string, StreamingMessage>();
   private chain: Promise<void> = Promise.resolve();
   private lastAgentMessageId: number | null = null;
+  private inputMarked = false;
   private readonly log: Logger;
+  private readonly typing: TypingIndicator;
 
   constructor(
     private readonly telegram: TurnTelegram,
@@ -30,9 +35,41 @@ export class TelegramTurnSink implements TurnSink {
     private readonly options: TelegramTurnSinkOptions,
   ) {
     this.log = options.logger ?? defaultLogger;
+    this.typing = new TypingIndicator(
+      telegram,
+      chatId,
+      threadId,
+      options.typingRefreshIntervalMs,
+      this.log,
+    );
+  }
+
+  onProcessingStarted(): void {
+    this.typing.start();
+  }
+
+  onInputAccepted(): void {
+    this.markInputAccepted();
+  }
+
+  private markInputAccepted(): void {
+    if (this.inputMarked) return;
+    this.inputMarked = true;
+    void this.schedule(async () => {
+      await this.telegram.setMessageReaction(this.chatId, this.options.inboundMessageId, {
+        type: "emoji",
+        emoji: "👀",
+      });
+    });
+  }
+
+  setWaitingForUser(waiting: boolean): void {
+    this.typing.setWaitingForUser(waiting);
   }
 
   onNotification(notification: ServerNotification): void {
+    if (notification.method === "turn/started") this.markInputAccepted();
+    if (notification.method === "turn/completed") this.typing.stop();
     const updates = this.renderer.consume(notification);
     void this.schedule(async () => {
       for (const update of updates) await this.apply(update);
@@ -43,6 +80,7 @@ export class TelegramTurnSink implements TurnSink {
   }
 
   onError(error: unknown): Promise<void> {
+    this.typing.stop();
     return this.schedule(async () => {
       await this.telegram.sendMessage(
         this.chatId,

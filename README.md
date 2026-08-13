@@ -3,7 +3,7 @@
 Agentger turns Telegram topics into remote UIs for long-running Codex agents. It supervises `codex app-server --stdio` directly and does not use `@openai/codex-sdk`.
 
 ```sh
-npm install -g https://github.com/frux/agentger/releases/download/v0.3.0/agentger-0.3.0.tgz
+npm install -g https://github.com/frux/agentger/releases/download/v0.4.0/agentger-0.4.0.tgz
 agentger init
 # edit .env
 agentger doctor
@@ -34,6 +34,7 @@ Telegram documents both `message_thread_id` and the `forum_topic_created` servic
 - one FIFO per Codex thread while different topics can execute concurrently;
 - separate Telegram messages for agent replies, reasoning summaries, plans, commands, file changes, and tool calls;
 - throttled edits while each agent reply streams, followed by a completion reaction on the final reply;
+- topic-scoped `typing` presence while a turn runs and a `👀` marker after the input is accepted;
 - command/file approvals through short opaque inline callback IDs with Allow/Deny, timeout, and duplicate handling;
 - interrupt, status, aggregated diff, history, and binding removal.
 
@@ -59,7 +60,7 @@ codex app-server --help
 Install the ready-to-run package from GitHub Releases:
 
 ```sh
-npm install -g https://github.com/frux/agentger/releases/download/v0.3.0/agentger-0.3.0.tgz
+npm install -g https://github.com/frux/agentger/releases/download/v0.4.0/agentger-0.4.0.tgz
 agentger --version
 ```
 
@@ -121,6 +122,7 @@ The real bot token is never logged. Do not commit `.env`.
 3. Disable BotFather privacy mode, or grant the bot permission to receive ordinary topic messages.
 4. Put your numeric user ID in `TELEGRAM_ALLOWED_USER_IDS`.
 5. Add all existing report topic IDs to `RESERVED_TOPICS` before starting Agentger.
+6. Keep the `👀` and `👍` reactions enabled in the supergroup, or configure an allowed custom completion reaction.
 
 Creating any other topic now creates its Codex session automatically. The first text sent there becomes the first Codex turn.
 
@@ -135,6 +137,10 @@ Every app-server item has its own Telegram message. Agent replies stream by edit
 ````
 
 There is no repeated `Codex` heading and no `✅ Готово` prefix. When a turn completes, Agentger reacts to the last agent reply. Telegram's built-in reaction list does not include `✅`, so the default is `👍`. To use a checkmark custom emoji, set `TELEGRAM_COMPLETION_REACTION_CUSTOM_EMOJI_ID`; Telegram requires that custom reaction to already be present or be explicitly allowed by the chat administrators. See [`setMessageReaction`](https://core.telegram.org/bots/api#setmessagereaction).
+
+While a turn is running, Agentger refreshes Telegram's `typing` chat action every four seconds in the correct topic. The indicator pauses while an approval request is waiting for your answer and resumes after the answer. Once `turn/start` accepts an input, Agentger reacts to that Telegram message with `👀` as a visible read marker.
+
+The Bot API has no native read-receipt method for ordinary bots in supergroups. [`readBusinessMessage`](https://core.telegram.org/bots/api#readbusinessmessage) works only on behalf of a connected Telegram Business account, so the `👀` reaction is the explicit equivalent used by Agentger.
 
 ## Telegram commands
 

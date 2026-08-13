@@ -49,7 +49,7 @@ export interface SendMessageOptions {
 }
 
 export type TelegramReaction =
-  | { type: "emoji"; emoji: "👍" }
+  | { type: "emoji"; emoji: "👍" | "👀" }
   | { type: "custom_emoji"; custom_emoji_id: string };
 
 type TelegramEnvelope<T> = {
@@ -127,6 +127,14 @@ export class TelegramApi {
       chat_id: chatId,
       message_id: messageId,
       reaction: [reaction],
+    });
+  }
+
+  sendChatAction(chatId: number, action: "typing", messageThreadId?: number): Promise<true> {
+    return this.call("sendChatAction", {
+      chat_id: chatId,
+      action,
+      ...(messageThreadId === undefined ? {} : { message_thread_id: messageThreadId }),
     });
   }
 
