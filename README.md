@@ -62,7 +62,7 @@ npm install -g github:frux/agentger
 agentger --version
 ```
 
-The repository has a `prepare` script, so npm installs development dependencies and builds the TypeScript sources while installing the Git dependency. After the package is published to the npm registry, the shorter `npm install -g agentger` command will work as well.
+The repository has a `prepare` script that bootstraps the build tools and compiles the TypeScript sources while npm installs the Git dependency. After the package is published to the npm registry, the shorter `npm install -g agentger` command will work as well.
 
 Create a working directory and configuration:
 
