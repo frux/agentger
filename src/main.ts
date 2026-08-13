@@ -7,6 +7,7 @@ import { ProjectResolver } from "./projects.js";
 import { SessionManager } from "./sessions/manager.js";
 import { ApprovalManager } from "./telegram/approvals.js";
 import { TelegramApi } from "./telegram/api.js";
+import { TelegramAttachmentManager } from "./telegram/attachments.js";
 import { TelegramBot } from "./telegram/bot.js";
 import { TelegramCommands } from "./telegram/commands.js";
 import { TopicRouter } from "./telegram/router.js";
@@ -31,6 +32,11 @@ export async function runAgentger(): Promise<void> {
   });
   const sessions = new SessionManager(client, db);
   const telegram = new TelegramApi(config.telegramBotToken, logger);
+  const attachments = new TelegramAttachmentManager(
+    telegram,
+    config.attachmentDirectory,
+    config.telegramMaxAttachmentBytes,
+  );
   const router = new TopicRouter(db);
   const approvals = new ApprovalManager(
     telegram,
@@ -51,7 +57,7 @@ export async function runAgentger(): Promise<void> {
     sessions,
     config.defaultProject,
   );
-  const bot = new TelegramBot(telegram, commands, approvals, topics, router, sessions, {
+  const bot = new TelegramBot(telegram, commands, approvals, topics, router, sessions, attachments, {
     allowedUserIds: config.allowedUserIds,
     longPollSeconds: config.telegramLongPollSeconds,
     streamUpdateIntervalMs: config.streamUpdateIntervalMs,

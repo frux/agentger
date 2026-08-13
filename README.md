@@ -3,7 +3,7 @@
 Agentger turns Telegram topics into remote UIs for long-running Codex agents. It supervises `codex app-server --stdio` directly and does not use `@openai/codex-sdk`.
 
 ```sh
-npm install -g https://github.com/frux/agentger/releases/download/v0.4.0/agentger-0.4.0.tgz
+npm install -g https://github.com/frux/agentger/releases/download/v0.5.0/agentger-0.5.0.tgz
 agentger init
 # edit .env
 agentger doctor
@@ -35,6 +35,7 @@ Telegram documents both `message_thread_id` and the `forum_topic_created` servic
 - separate Telegram messages for agent replies, reasoning summaries, plans, commands, file changes, and tool calls;
 - throttled edits while each agent reply streams, followed by a completion reaction on the final reply;
 - topic-scoped `typing` presence while a turn runs and a `👀` marker after the input is accepted;
+- Telegram photos, image documents, arbitrary files, audio, and voice messages as native Codex inputs;
 - command/file approvals through short opaque inline callback IDs with Allow/Deny, timeout, and duplicate handling;
 - interrupt, status, aggregated diff, history, and binding removal.
 
@@ -60,7 +61,7 @@ codex app-server --help
 Install the ready-to-run package from GitHub Releases:
 
 ```sh
-npm install -g https://github.com/frux/agentger/releases/download/v0.4.0/agentger-0.4.0.tgz
+npm install -g https://github.com/frux/agentger/releases/download/v0.5.0/agentger-0.5.0.tgz
 agentger --version
 ```
 
@@ -91,6 +92,8 @@ TELEGRAM_BOT_TOKEN=123456789:replace_me
 TELEGRAM_ALLOWED_USER_IDS=123456789
 
 DATABASE_PATH=./data/bot.sqlite
+ATTACHMENT_DIRECTORY=./data/attachments
+TELEGRAM_MAX_ATTACHMENT_BYTES=20971520
 ALLOWED_PROJECT_ROOTS=/home/codex/projects,/home/codex/src
 PROJECTS=frux=/home/codex/projects/frux,backend=/home/codex/src/backend
 DEFAULT_PROJECT=frux
@@ -125,6 +128,16 @@ The real bot token is never logged. Do not commit `.env`.
 6. Keep the `👀` and `👍` reactions enabled in the supergroup, or configure an allowed custom completion reaction.
 
 Creating any other topic now creates its Codex session automatically. The first text sent there becomes the first Codex turn.
+
+## Attachments and voice
+
+Send a photo, a file, an audio track, or a Telegram voice message to any Codex topic. Captions and attachments are delivered in the same turn:
+
+- photos and image documents become app-server `localImage` inputs;
+- voice messages, audio, and audio documents become `localAudio` inputs;
+- other documents are exposed as a local file mention plus an absolute path, so the agent can inspect them with its normal tools.
+
+Agentger selects the largest variant of a Telegram photo and downloads files as a bounded stream. `TELEGRAM_MAX_ATTACHMENT_BYTES` defaults to 20 MB, the cloud Bot API download limit, and may be lowered. Files are stored under `ATTACHMENT_DIRECTORY` in per-chat/topic/message directories with private permissions and sanitized names. They remain there so later turns can refer to them; remove old files according to your own retention policy. Keep this directory outside Git repositories and protect it like the Codex account's other working data.
 
 ## Message format
 

@@ -1,5 +1,11 @@
 import type { Logger } from "../logger.js";
 import { logger as defaultLogger } from "../logger.js";
+import { createWriteStream } from "node:fs";
+import { unlink } from "node:fs/promises";
+import { isAbsolute } from "node:path";
+import { Readable, Transform } from "node:stream";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
+import { pipeline } from "node:stream/promises";
 
 export interface TelegramUser {
   id: number;
@@ -11,12 +17,55 @@ export interface TelegramChat {
   type: string;
 }
 
+export interface TelegramPhotoSize {
+  file_id: string;
+  file_unique_id: string;
+  width: number;
+  height: number;
+  file_size?: number;
+}
+
+export interface TelegramDocument {
+  file_id: string;
+  file_unique_id: string;
+  file_name?: string;
+  mime_type?: string;
+  file_size?: number;
+}
+
+export interface TelegramAudio extends TelegramDocument {
+  duration: number;
+  performer?: string;
+  title?: string;
+}
+
+export interface TelegramVoice {
+  file_id: string;
+  file_unique_id: string;
+  duration: number;
+  mime_type?: string;
+  file_size?: number;
+}
+
+export interface TelegramFile {
+  file_id: string;
+  file_unique_id: string;
+  file_size?: number;
+  file_path?: string;
+}
+
 export interface TelegramMessage {
   message_id: number;
   message_thread_id?: number;
   chat: TelegramChat;
   from?: TelegramUser;
   text?: string;
+  caption?: string;
+  photo?: TelegramPhotoSize[];
+  document?: TelegramDocument;
+  audio?: TelegramAudio;
+  voice?: TelegramVoice;
+  media_group_id?: string;
   forum_topic_created?: {
     name: string;
     icon_color: number;
@@ -73,6 +122,7 @@ export class TelegramApiError extends Error {
 
 export class TelegramApi {
   private readonly baseUrl: string;
+  private readonly fileBaseUrl: string;
 
   constructor(
     token: string,
@@ -81,6 +131,7 @@ export class TelegramApi {
   ) {
     if (!token) throw new Error("Telegram bot token is required");
     this.baseUrl = `https://api.telegram.org/bot${token}`;
+    this.fileBaseUrl = `https://api.telegram.org/file/bot${token}`;
   }
 
   getUpdates(offset: number, timeoutSeconds: number, signal?: AbortSignal): Promise<TelegramUpdate[]> {
@@ -145,6 +196,55 @@ export class TelegramApi {
     });
   }
 
+  getFile(fileId: string): Promise<TelegramFile> {
+    return this.call("getFile", { file_id: fileId });
+  }
+
+  async downloadFile(filePath: string, destination: string, maxBytes: number): Promise<number> {
+    const segments = filePath.split("/");
+    if (!filePath || isAbsolute(filePath) || segments.some((segment) => !segment || segment === "." || segment === "..")) {
+      throw new Error("Telegram returned an invalid file path");
+    }
+    const url = `${this.fileBaseUrl}/${segments.map(encodeURIComponent).join("/")}`;
+    let response: Response;
+    try {
+      response = await this.fetchImpl(url);
+    } catch {
+      throw new Error("Telegram file download failed because of a network error");
+    }
+    if (!response.ok || !response.body) {
+      throw new Error(`Telegram file download failed with HTTP ${response.status}`);
+    }
+    const contentLength = response.headers.get("content-length");
+    const declaredSize = contentLength === null ? null : Number(contentLength);
+    if (declaredSize !== null && Number.isFinite(declaredSize) && declaredSize > maxBytes) {
+      throw new TelegramFileTooLargeError(maxBytes, declaredSize);
+    }
+
+    let downloaded = 0;
+    const limiter = new Transform({
+      transform(chunk: Buffer, _encoding, callback) {
+        downloaded += chunk.length;
+        if (downloaded > maxBytes) {
+          callback(new TelegramFileTooLargeError(maxBytes, downloaded));
+          return;
+        }
+        callback(null, chunk);
+      },
+    });
+    try {
+      await pipeline(
+        Readable.fromWeb(response.body as unknown as NodeReadableStream),
+        limiter,
+        createWriteStream(destination, { flags: "wx", mode: 0o600 }),
+      );
+      return downloaded;
+    } catch (error) {
+      await unlink(destination).catch(() => undefined);
+      throw error;
+    }
+  }
+
   private async call<T>(
     method: string,
     body: Record<string, unknown>,
@@ -183,5 +283,15 @@ export class TelegramApi {
       }
     }
     throw lastError;
+  }
+}
+
+export class TelegramFileTooLargeError extends Error {
+  constructor(
+    readonly maxBytes: number,
+    readonly actualBytes?: number,
+  ) {
+    super(`File exceeds the ${Math.floor(maxBytes / (1024 * 1024))} MB download limit`);
+    this.name = "TelegramFileTooLargeError";
   }
 }
