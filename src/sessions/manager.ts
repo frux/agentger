@@ -8,6 +8,9 @@ import type { TurnStartResponse } from "../app-server/generated/v2/TurnStartResp
 import type { BridgeDatabase, TopicBinding } from "../db.js";
 
 export interface TurnSink {
+  onProcessingStarted?(): void;
+  onInputAccepted?(): void;
+  setWaitingForUser?(waiting: boolean): void;
   onNotification(notification: ServerNotification): void;
   onError(error: unknown): void | Promise<void>;
 }
@@ -155,7 +158,10 @@ export class SessionManager {
 
   setWaitingApproval(threadId: string, waiting: boolean): void {
     const state = this.state(threadId);
-    if (state.active) state.status = waiting ? "waiting approval" : "working";
+    if (state.active) {
+      state.status = waiting ? "waiting approval" : "working";
+      state.active.sink.setWaitingForUser?.(waiting);
+    }
   }
 
   detach(threadId: string): void {
@@ -167,6 +173,7 @@ export class SessionManager {
     const threadId = binding.codexThreadId;
     const state = this.state(threadId);
     try {
+      sink.onProcessingStarted?.();
       await this.ensureLoaded(binding);
       const wait = deferred();
       const active: ActiveTurn = { turnId: null, sink, ...wait };
@@ -175,6 +182,7 @@ export class SessionManager {
       state.lastError = null;
       const response = await this.client.startTurn(threadId, text, clientUserMessageId);
       active.turnId = response.turn.id;
+      sink.onInputAccepted?.();
       await active.completion;
     } catch (error) {
       state.status = "failed";

@@ -4,6 +4,7 @@ import type { ThreadItem } from "../src/app-server/generated/v2/ThreadItem.js";
 import { splitTelegramText, TurnRenderer } from "../src/telegram/renderer.js";
 import { StreamingMessage } from "../src/telegram/streaming-message.js";
 import { TelegramTurnSink } from "../src/telegram/turn-sink.js";
+import { TypingIndicator } from "../src/telegram/typing-indicator.js";
 
 test("Telegram text splitting preserves all content within limits", () => {
   const text = `${"a".repeat(3_500)}\n${"b".repeat(3_500)}\n${"c".repeat(1_000)}`;
@@ -110,11 +111,14 @@ test("turn sink sends each activity separately and reacts to the final agent mes
       reactions.push({ messageId, reaction });
       return true as const;
     },
+    async sendChatAction() { return true as const; },
   };
   const sink = new TelegramTurnSink(telegram, 1, 2, {
     streamUpdateIntervalMs: 1,
     completionReactionCustomEmojiId: null,
+    inboundMessageId: 7,
   });
+  sink.onInputAccepted();
   sink.onNotification({
     method: "item/completed",
     params: { threadId: "thread-1", turnId: "turn-1", item: agentItem("agent-1", "Сначала проверю файлы."), completedAtMs: 1 },
@@ -152,7 +156,10 @@ test("turn sink sends each activity separately and reacts to the final agent mes
   ]);
   assert.deepEqual(edits, []);
   assert.deepEqual(sent[1]?.options, { messageThreadId: 2, parseMode: "MarkdownV2" });
-  assert.deepEqual(reactions, [{ messageId: 12, reaction: { type: "emoji", emoji: "👍" } }]);
+  assert.deepEqual(reactions, [
+    { messageId: 7, reaction: { type: "emoji", emoji: "👀" } },
+    { messageId: 12, reaction: { type: "emoji", emoji: "👍" } },
+  ]);
 });
 
 test("turn sink uses the configured custom completion reaction", async () => {
@@ -164,10 +171,12 @@ test("turn sink uses the configured custom completion reaction", async () => {
       reactions.push(reaction);
       return true as const;
     },
+    async sendChatAction() { return true as const; },
   };
   const sink = new TelegramTurnSink(telegram, 1, 2, {
     streamUpdateIntervalMs: 1,
     completionReactionCustomEmojiId: "checkmark-custom-emoji-id",
+    inboundMessageId: 7,
   });
   const item = agentItem("agent-1", "Готово без текстового статуса.");
   sink.onNotification({
@@ -192,4 +201,31 @@ test("turn sink uses the configured custom completion reaction", async () => {
   });
   await sink.drain();
   assert.deepEqual(reactions, [{ type: "custom_emoji", custom_emoji_id: "checkmark-custom-emoji-id" }]);
+});
+
+test("typing indicator refreshes while working and pauses while waiting for the user", async () => {
+  const actions: Array<{ chatId: number; action: string; threadId?: number }> = [];
+  const telegram = {
+    async sendChatAction(chatId: number, action: "typing", threadId?: number) {
+      actions.push({ chatId, action, ...(threadId === undefined ? {} : { threadId }) });
+      return true as const;
+    },
+  };
+  const indicator = new TypingIndicator(telegram, 1, 2, 10);
+  indicator.start();
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  assert.ok(actions.length >= 2);
+
+  indicator.setWaitingForUser(true);
+  const pausedAt = actions.length;
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  assert.equal(actions.length, pausedAt);
+
+  indicator.setWaitingForUser(false);
+  assert.equal(actions.length, pausedAt + 1);
+  indicator.stop();
+  const stoppedAt = actions.length;
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(actions.length, stoppedAt);
+  assert.deepEqual(actions[0], { chatId: 1, action: "typing", threadId: 2 });
 });
