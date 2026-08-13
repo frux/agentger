@@ -42,6 +42,7 @@
     "test": "npm run build && node --disable-warning=ExperimentalWarning --test dist/test/*.test.js",
     "test:integration": "npm run build && AGENTGER_INTEGRATION=1 node --disable-warning=ExperimentalWarning --test dist/test/app-server.integration.test.js",
     "generate:protocol": "codex app-server generate-ts --out ./src/app-server/generated",
+    "prepare": "npm run build",
     "prepack": "npm run build"
   },
   "publishConfig": {

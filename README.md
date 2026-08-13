@@ -3,7 +3,7 @@
 Agentger turns Telegram topics into remote UIs for long-running Codex agents. It supervises `codex app-server --stdio` directly and does not use `@openai/codex-sdk`.
 
 ```sh
-npm install -g agentger
+npm install -g github:frux/agentger
 agentger init
 # edit .env
 agentger doctor
@@ -55,12 +55,14 @@ codex app-server --help
 
 ## Install as a Node.js CLI
 
-Install from npm:
+Install directly from GitHub:
 
 ```sh
-npm install -g agentger
+npm install -g github:frux/agentger
 agentger --version
 ```
+
+The repository has a `prepare` script, so npm installs development dependencies and builds the TypeScript sources while installing the Git dependency. After the package is published to the npm registry, the shorter `npm install -g agentger` command will work as well.
 
 Create a working directory and configuration:
 
@@ -161,5 +163,5 @@ Generated files under `src/app-server/generated` match the installed Codex versi
 The real app-server lifecycle test is opt-in because it consumes authenticated model usage:
 
 ```sh
-AGENTGER_INTEGRATION=1 npm test
+npm run test:integration
 ```
