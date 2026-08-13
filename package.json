@@ -1,0 +1,22 @@
+{
+  "name": "telegram-codex-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node --disable-warning=ExperimentalWarning dist/src/index.js",
+    "dev": "tsx src/index.ts",
+    "test": "npm run build && node --disable-warning=ExperimentalWarning --test dist/test/*.test.js",
+    "test:integration": "npm run build && TELECODEX_INTEGRATION=1 node --disable-warning=ExperimentalWarning --test dist/test/app-server.integration.test.js",
+    "generate:protocol": "codex app-server generate-ts --out ./src/app-server/generated"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,0 +1,22 @@
+[Unit]
+Description=Telegram to Codex app-server bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=codex
+Group=codex
+WorkingDirectory=/opt/telegram-codex
+EnvironmentFile=/etc/telegram-codex.env
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning /opt/telegram-codex/dist/src/index.js
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=20s
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
