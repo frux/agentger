@@ -183,7 +183,7 @@ export class AppServerSupervisor extends EventEmitter {
 
   private async initialize(rpc: JsonRpcClient): Promise<void> {
     const response = await rpc.request<InitializeResponse>("initialize", {
-      clientInfo: { name: "telegram_codex", title: "Telegram Codex Client", version: "0.1.0" },
+      clientInfo: { name: "agentger", title: "Agentger", version: "0.2.0" },
       capabilities: {
         experimentalApi: false,
         requestAttestation: false,

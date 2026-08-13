@@ -39,6 +39,17 @@ export class ProjectResolver {
     return this.validate(project.workingDirectory);
   }
 
+  async resolveDefault(name: string | null): Promise<string> {
+    if (name) return this.resolveAlias(name);
+    const projects = this.db.listProjects();
+    if (projects.length !== 1) {
+      throw new ProjectNotFoundError(
+        "Set DEFAULT_PROJECT, or configure exactly one PROJECTS alias for automatic topics",
+      );
+    }
+    return this.validate(projects[0]!.workingDirectory);
+  }
+
   async validate(path: string): Promise<string> {
     if (!isAbsolute(path)) throw new ProjectPathDeniedError("Project path must be absolute");
     let canonical: string;

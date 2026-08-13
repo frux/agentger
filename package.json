@@ -1,18 +1,51 @@
 {
-  "name": "telegram-codex-bridge",
-  "version": "0.1.0",
-  "private": true,
+  "name": "agentger",
+  "version": "0.2.0",
+  "description": "Telegram topic UI for long-running Codex agents via codex app-server",
+  "license": "MIT",
+  "author": "Vladimir Kudinov <login@frux.me>",
   "type": "module",
+  "main": "./dist/src/index.js",
+  "exports": "./dist/src/index.js",
+  "bin": {
+    "agentger": "./dist/src/cli.js"
+  },
+  "files": [
+    "dist/src",
+    "deploy",
+    ".env.example",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frux/agentger.git"
+  },
+  "homepage": "https://github.com/frux/agentger#readme",
+  "bugs": {
+    "url": "https://github.com/frux/agentger/issues"
+  },
+  "keywords": [
+    "codex",
+    "telegram",
+    "cli",
+    "agent",
+    "app-server"
+  ],
   "engines": {
     "node": ">=22.5.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "node --disable-warning=ExperimentalWarning dist/src/index.js",
-    "dev": "tsx src/index.ts",
+    "start": "node --disable-warning=ExperimentalWarning dist/src/cli.js start",
+    "dev": "tsx src/cli.ts start",
     "test": "npm run build && node --disable-warning=ExperimentalWarning --test dist/test/*.test.js",
-    "test:integration": "npm run build && TELECODEX_INTEGRATION=1 node --disable-warning=ExperimentalWarning --test dist/test/app-server.integration.test.js",
-    "generate:protocol": "codex app-server generate-ts --out ./src/app-server/generated"
+    "test:integration": "npm run build && AGENTGER_INTEGRATION=1 node --disable-warning=ExperimentalWarning --test dist/test/app-server.integration.test.js",
+    "generate:protocol": "codex app-server generate-ts --out ./src/app-server/generated",
+    "prepack": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

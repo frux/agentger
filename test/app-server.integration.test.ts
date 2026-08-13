@@ -5,7 +5,7 @@ import { AppServerSupervisor } from "../src/app-server/process.js";
 import type { ServerNotification } from "../src/app-server/generated/ServerNotification.js";
 import { logger } from "../src/logger.js";
 
-const enabled = process.env.TELECODEX_INTEGRATION === "1";
+const enabled = process.env.AGENTGER_INTEGRATION === "1";
 
 test("app-server opt-in lifecycle", { skip: !enabled, timeout: 120_000 }, async () => {
   const client = new AppServerClient(new AppServerSupervisor({ logger }), {
@@ -20,7 +20,7 @@ test("app-server opt-in lifecycle", { skip: !enabled, timeout: 120_000 }, async 
   await client.start();
   try {
     const started = await client.startThread(process.cwd());
-    const turn = await client.startTurn(started.thread.id, "Reply with exactly: telecodex integration ok", "integration-test-1");
+    const turn = await client.startTurn(started.thread.id, "Reply with exactly: agentger integration ok", "integration-test-1");
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("turn/completed timeout")), 90_000);
       const off = client.onNotification((notification) => {

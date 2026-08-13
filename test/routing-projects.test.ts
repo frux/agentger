@@ -28,8 +28,8 @@ test("router isolates unknown, reserved, and registered topics", () => {
 });
 
 test("project resolver accepts canonical children and blocks symlink traversal", async () => {
-  const root = await mkdtemp(join(tmpdir(), "telecodex-root-"));
-  const outside = await mkdtemp(join(tmpdir(), "telecodex-outside-"));
+  const root = await mkdtemp(join(tmpdir(), "agentger-root-"));
+  const outside = await mkdtemp(join(tmpdir(), "agentger-outside-"));
   try {
     const project = join(root, "project");
     await mkdir(project);
