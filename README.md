@@ -3,7 +3,7 @@
 Agentger turns Telegram topics into remote UIs for long-running Codex agents. It supervises `codex app-server --stdio` directly and does not use `@openai/codex-sdk`.
 
 ```sh
-npm install -g https://github.com/frux/agentger/releases/download/v0.2.0/agentger-0.2.0.tgz
+npm install -g https://github.com/frux/agentger/releases/download/v0.3.0/agentger-0.3.0.tgz
 agentger init
 # edit .env
 agentger doctor
@@ -32,7 +32,8 @@ Telegram documents both `message_thread_id` and the `forum_topic_created` servic
 - SQLite topic bindings, reserved topics, aliases, lazy `thread/resume`, and persisted `thread/read` recovery;
 - canonical `realpath` checks against `ALLOWED_PROJECT_ROOTS`, including symlink-escape protection;
 - one FIFO per Codex thread while different topics can execute concurrently;
-- throttled Telegram edits for agent output, safe reasoning summaries, plans, commands, file changes, MCP calls, and final answers;
+- separate Telegram messages for agent replies, reasoning summaries, plans, commands, file changes, and tool calls;
+- throttled edits while each agent reply streams, followed by a completion reaction on the final reply;
 - command/file approvals through short opaque inline callback IDs with Allow/Deny, timeout, and duplicate handling;
 - interrupt, status, aggregated diff, history, and binding removal.
 
@@ -58,7 +59,7 @@ codex app-server --help
 Install the ready-to-run package from GitHub Releases:
 
 ```sh
-npm install -g https://github.com/frux/agentger/releases/download/v0.2.0/agentger-0.2.0.tgz
+npm install -g https://github.com/frux/agentger/releases/download/v0.3.0/agentger-0.3.0.tgz
 agentger --version
 ```
 
@@ -94,6 +95,9 @@ PROJECTS=frux=/home/codex/projects/frux,backend=/home/codex/src/backend
 DEFAULT_PROJECT=frux
 
 RESERVED_TOPICS=-1001234567890:10:daily-report,-1001234567890:20:weekly-report
+
+# Optional custom emoji ID for a ✅ reaction; otherwise Agentger uses 👍.
+TELEGRAM_COMPLETION_REACTION_CUSTOM_EMOJI_ID=
 ```
 
 `DEFAULT_PROJECT` selects the `cwd` for every automatically created topic. It may be omitted only when the `projects` table contains exactly one alias. Every project path is canonicalized through `realpath` and must remain inside an allowed root. `/`, `/etc`, and `~/.ssh` are rejected.
@@ -119,6 +123,18 @@ The real bot token is never logged. Do not commit `.env`.
 5. Add all existing report topic IDs to `RESERVED_TOPICS` before starting Agentger.
 
 Creating any other topic now creates its Codex session automatically. The first text sent there becomes the first Codex turn.
+
+## Message format
+
+Every app-server item has its own Telegram message. Agent replies stream by editing only their own message. Tool calls use a compact `🔧 server/tool` label. Commands are rendered as Bash code blocks:
+
+````text
+```bash
+/usr/bin/bash -lc "sed -n '1,240p' /home/frux/.agents/skills/frux-voice/SKILL.md"
+```
+````
+
+There is no repeated `Codex` heading and no `✅ Готово` prefix. When a turn completes, Agentger reacts to the last agent reply. Telegram's built-in reaction list does not include `✅`, so the default is `👍`. To use a checkmark custom emoji, set `TELEGRAM_COMPLETION_REACTION_CUSTOM_EMOJI_ID`; Telegram requires that custom reaction to already be present or be explicitly allowed by the chat administrators. See [`setMessageReaction`](https://core.telegram.org/bots/api#setmessagereaction).
 
 ## Telegram commands
 

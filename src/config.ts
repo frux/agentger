@@ -21,6 +21,7 @@ export interface Config {
   rpcTimeoutMs: number;
   approvalTimeoutMs: number;
   streamUpdateIntervalMs: number;
+  telegramCompletionReactionCustomEmojiId: string | null;
   telegramLongPollSeconds: number;
 }
 
@@ -128,6 +129,7 @@ export function loadConfig(): Config {
     rpcTimeoutMs: positiveInt("RPC_TIMEOUT_MS", 30_000),
     approvalTimeoutMs: positiveInt("APPROVAL_TIMEOUT_MS", 10 * 60_000),
     streamUpdateIntervalMs: positiveInt("STREAM_UPDATE_INTERVAL_MS", 750),
+    telegramCompletionReactionCustomEmojiId: process.env.TELEGRAM_COMPLETION_REACTION_CUSTOM_EMOJI_ID?.trim() || null,
     telegramLongPollSeconds: positiveInt("TELEGRAM_LONG_POLL_SECONDS", 45),
   };
   const ssh = resolve(homedir(), ".ssh");

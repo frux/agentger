@@ -55,7 +55,7 @@ export class TopicProvisioner {
       this.sessions.registerLoaded(binding.codexThreadId, started.model);
       if (announce) {
         await this.telegram.sendMessage(message.chat.id, [
-          "✅ Agentger создал Codex session",
+          "Создана новая сессия",
           "",
           `Thread: ${binding.codexThreadId}`,
           `cwd: ${binding.workingDirectory}`,
@@ -64,7 +64,7 @@ export class TopicProvisioner {
       return binding;
     } catch (error) {
       await this.telegram.sendMessage(message.chat.id, [
-        "❌ Agentger не смог создать Codex session",
+        "❌ Не удалось создать сессию",
         "",
         error instanceof Error ? error.message : String(error),
       ].join("\n"), { messageThreadId: telegramThreadId });

@@ -35,7 +35,7 @@ function renderHistory(binding: TopicBinding, turns: Awaited<ReturnType<SessionM
         const text = userMessageText(item);
         if (text) messages.push(`Вы: ${text}`);
       } else if (item.type === "agentMessage" && item.text) {
-        messages.push(`Codex: ${item.text}`);
+        messages.push(item.text);
       }
     }
     if (messages.length > 0) lines.push(`\n[${turn.status}]\n${messages.join("\n\n")}`);
@@ -112,9 +112,9 @@ export class TelegramCommands {
         throw new Error(`Thread ${started.thread.id} создан, но binding не сохранён: ${error instanceof Error ? error.message : String(error)}`);
       }
       this.sessions.registerLoaded(started.thread.id, started.model);
-      await this.reply(message, `✅ Codex подключён\n\nThread: ${started.thread.id}\ncwd: ${cwd}\nmodel: ${started.model}`);
+      await this.reply(message, `Сессия подключена\n\nThread: ${started.thread.id}\ncwd: ${cwd}\nmodel: ${started.model}`);
     } catch (error) {
-      await this.reply(message, `❌ Не удалось подключить Codex: ${error instanceof Error ? error.message : String(error)}`);
+      await this.reply(message, `❌ Не удалось подключить сессию: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -142,7 +142,7 @@ export class TelegramCommands {
         title: resumed.thread.name,
       });
       this.sessions.registerLoaded(resumed.thread.id, resumed.model);
-      await this.reply(message, `✅ Существующий Codex thread подключён\n\nThread: ${resumed.thread.id}\ncwd: ${cwd}\nmodel: ${resumed.model}`);
+      await this.reply(message, `Существующая сессия подключена\n\nThread: ${resumed.thread.id}\ncwd: ${cwd}\nmodel: ${resumed.model}`);
     } catch (error) {
       const known = error instanceof TopicReservedError || error instanceof TopicAlreadyBoundError || error instanceof ThreadAlreadyBoundError;
       await this.reply(message, `❌ Не удалось подключить thread: ${known || error instanceof Error ? (error as Error).message : String(error)}`);
