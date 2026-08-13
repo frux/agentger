@@ -7,6 +7,7 @@ import type { ThreadResumeResponse } from "./generated/v2/ThreadResumeResponse.j
 import type { ThreadStartResponse } from "./generated/v2/ThreadStartResponse.js";
 import type { TurnStartResponse } from "./generated/v2/TurnStartResponse.js";
 import type { TurnSteerResponse } from "./generated/v2/TurnSteerResponse.js";
+import type { UserInput } from "./generated/v2/UserInput.js";
 import type { AskForApproval } from "./generated/v2/AskForApproval.js";
 import type { SandboxMode } from "./generated/v2/SandboxMode.js";
 import { AppServerSupervisor } from "./process.js";
@@ -16,6 +17,8 @@ export interface AppServerClientOptions {
   approvalPolicy?: AskForApproval;
   sandbox?: SandboxMode;
 }
+
+export type TurnInput = string | UserInput[];
 
 export class AppServerClient {
   readonly approvalPolicy: AskForApproval;
@@ -89,18 +92,18 @@ export class AppServerClient {
     return this.idempotent(() => this.supervisor.request("thread/list", params));
   }
 
-  startTurn(threadId: string, text: string, clientUserMessageId?: string): Promise<TurnStartResponse> {
+  startTurn(threadId: string, input: TurnInput, clientUserMessageId?: string): Promise<TurnStartResponse> {
     return this.supervisor.request("turn/start", {
       threadId,
-      input: [{ type: "text", text, text_elements: [] }],
+      input: normalizeInput(input),
       ...(clientUserMessageId === undefined ? {} : { clientUserMessageId }),
     });
   }
 
-  steerTurn(threadId: string, text: string, clientUserMessageId?: string): Promise<TurnSteerResponse> {
+  steerTurn(threadId: string, input: TurnInput, clientUserMessageId?: string): Promise<TurnSteerResponse> {
     return this.supervisor.request("turn/steer", {
       threadId,
-      input: [{ type: "text", text, text_elements: [] }],
+      input: normalizeInput(input),
       ...(clientUserMessageId === undefined ? {} : { clientUserMessageId }),
     });
   }
@@ -128,6 +131,12 @@ export class AppServerClient {
     }
     throw lastError;
   }
+}
+
+function normalizeInput(input: TurnInput): UserInput[] {
+  return typeof input === "string"
+    ? [{ type: "text", text: input, text_elements: [] }]
+    : input;
 }
 
 export type { ServerNotification, ServerRequest };

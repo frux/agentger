@@ -11,6 +11,8 @@ export interface Config {
   telegramBotToken: string;
   allowedUserIds: Set<number>;
   databasePath: string;
+  attachmentDirectory: string;
+  telegramMaxAttachmentBytes: number;
   allowedProjectRoots: string[];
   projects: ProjectSeed[];
   defaultProject: string | null;
@@ -115,10 +117,17 @@ function parseSandbox(value: string | undefined): SandboxMode {
 
 export function loadConfig(): Config {
   loadEnvFile();
+  const databasePath = resolve(process.env.DATABASE_PATH ?? "./data/bot.sqlite");
+  const telegramMaxAttachmentBytes = positiveInt("TELEGRAM_MAX_ATTACHMENT_BYTES", 20 * 1024 * 1024);
+  if (telegramMaxAttachmentBytes > 20 * 1024 * 1024) {
+    throw new Error("TELEGRAM_MAX_ATTACHMENT_BYTES must not exceed Telegram's 20 MB Bot API limit");
+  }
   const config: Config = {
     telegramBotToken: required("TELEGRAM_BOT_TOKEN"),
     allowedUserIds: parseIds(required("TELEGRAM_ALLOWED_USER_IDS"), "TELEGRAM_ALLOWED_USER_IDS"),
-    databasePath: resolve(process.env.DATABASE_PATH ?? "./data/bot.sqlite"),
+    databasePath,
+    attachmentDirectory: resolve(process.env.ATTACHMENT_DIRECTORY ?? "./data/attachments"),
+    telegramMaxAttachmentBytes,
     allowedProjectRoots: parseRoots(required("ALLOWED_PROJECT_ROOTS")),
     projects: parseProjects(process.env.PROJECTS),
     defaultProject: process.env.DEFAULT_PROJECT?.trim() || null,

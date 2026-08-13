@@ -7,7 +7,7 @@ import { resolve } from "node:path";
 import { loadConfig } from "./config.js";
 import { logger } from "./logger.js";
 
-const VERSION = "0.4.0";
+const VERSION = "0.5.0";
 
 function usage(): string {
   return `Agentger ${VERSION}
@@ -62,6 +62,7 @@ async function doctor(): Promise<void> {
     "Agentger configuration is valid.",
     `Codex: ${version}`,
     `Database: ${config.databasePath}`,
+    `Attachments: ${config.attachmentDirectory} (max ${config.telegramMaxAttachmentBytes} bytes)`,
     `Allowed roots: ${config.allowedProjectRoots.join(", ")}`,
     `Projects: ${config.projects.map((project) => project.name).join(", ") || "database only"}`,
     `Default project: ${config.defaultProject ?? "the only configured alias"} → ${defaultCwd}`,

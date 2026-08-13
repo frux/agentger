@@ -1,7 +1,7 @@
 import type { ServerNotification } from "../app-server/generated/ServerNotification.js";
 import type { Thread } from "../app-server/generated/v2/Thread.js";
 import type { ThreadTokenUsage } from "../app-server/generated/v2/ThreadTokenUsage.js";
-import type { AppServerClient } from "../app-server/client.js";
+import type { AppServerClient, TurnInput } from "../app-server/client.js";
 import type { ThreadReadResponse } from "../app-server/generated/v2/ThreadReadResponse.js";
 import type { ThreadResumeResponse } from "../app-server/generated/v2/ThreadResumeResponse.js";
 import type { TurnStartResponse } from "../app-server/generated/v2/TurnStartResponse.js";
@@ -21,7 +21,7 @@ export interface SessionClient {
   onReady(listener: (generation: number) => void): () => void;
   onDown(listener: (error: Error) => void): () => void;
   resumeThread(threadId: string, cwd?: string): Promise<ThreadResumeResponse>;
-  startTurn(threadId: string, text: string, clientUserMessageId?: string): Promise<TurnStartResponse>;
+  startTurn(threadId: string, input: TurnInput, clientUserMessageId?: string): Promise<TurnStartResponse>;
   interruptTurn(threadId: string, turnId: string): Promise<void>;
   readThread(threadId: string, includeTurns?: boolean): Promise<ThreadReadResponse>;
 }
@@ -92,14 +92,14 @@ export class SessionManager {
     state.lastError = null;
   }
 
-  enqueue(binding: TopicBinding, text: string, clientUserMessageId: string, sink: TurnSink): Promise<void> {
+  enqueue(binding: TopicBinding, input: TurnInput, clientUserMessageId: string, sink: TurnSink): Promise<void> {
     const threadId = binding.codexThreadId;
     const state = this.state(threadId);
     state.queued += 1;
     const previous = this.queues.get(threadId) ?? Promise.resolve();
     const task = previous.catch(() => undefined).then(async () => {
       state.queued = Math.max(0, state.queued - 1);
-      await this.runTurn(binding, text, clientUserMessageId, sink);
+      await this.runTurn(binding, input, clientUserMessageId, sink);
     });
     this.queues.set(threadId, task);
     void task.finally(() => {
@@ -169,7 +169,7 @@ export class SessionManager {
     if (!state?.active && state?.queued === 0) this.states.delete(threadId);
   }
 
-  private async runTurn(binding: TopicBinding, text: string, clientUserMessageId: string, sink: TurnSink): Promise<void> {
+  private async runTurn(binding: TopicBinding, input: TurnInput, clientUserMessageId: string, sink: TurnSink): Promise<void> {
     const threadId = binding.codexThreadId;
     const state = this.state(threadId);
     try {
@@ -180,7 +180,7 @@ export class SessionManager {
       state.active = active;
       state.status = "working";
       state.lastError = null;
-      const response = await this.client.startTurn(threadId, text, clientUserMessageId);
+      const response = await this.client.startTurn(threadId, input, clientUserMessageId);
       active.turnId = response.turn.id;
       sink.onInputAccepted?.();
       await active.completion;

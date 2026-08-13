@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { test } from "node:test";
 import type { ServerNotification } from "../src/app-server/generated/ServerNotification.js";
+import type { TurnInput } from "../src/app-server/client.js";
 import { BridgeDatabase, type TopicBinding } from "../src/db.js";
 import { SessionManager, type SessionClient, type TurnSink } from "../src/sessions/manager.js";
 
 class FakeSessionClient extends EventEmitter implements SessionClient {
   generation = 1;
-  starts: Array<{ threadId: string; text: string }> = [];
+  starts: Array<{ threadId: string; input: TurnInput }> = [];
   interrupts: Array<{ threadId: string; turnId: string }> = [];
 
   onNotification(listener: (notification: ServerNotification) => void): () => void {
@@ -25,8 +26,8 @@ class FakeSessionClient extends EventEmitter implements SessionClient {
   async resumeThread(threadId: string) {
     return { model: "test-model", thread: { id: threadId, status: { type: "idle" } } } as never;
   }
-  async startTurn(threadId: string, text: string) {
-    this.starts.push({ threadId, text });
+  async startTurn(threadId: string, input: TurnInput) {
+    this.starts.push({ threadId, input });
     return { turn: { id: `turn-${this.starts.length}` } } as never;
   }
   async interruptTurn(threadId: string, turnId: string): Promise<void> {
@@ -86,11 +87,11 @@ test("turns are serialized per Codex thread", async () => {
   const first = sessions.enqueue(topic, "first", "tg-1", sink);
   const second = sessions.enqueue(topic, "second", "tg-2", sink);
   await until(() => client.starts.length === 1);
-  assert.deepEqual(client.starts, [{ threadId: "thread-a", text: "first" }]);
+  assert.deepEqual(client.starts, [{ threadId: "thread-a", input: "first" }]);
   client.complete("thread-a", "turn-1");
   await first;
   await until(() => client.starts.length === 2);
-  assert.deepEqual(client.starts[1], { threadId: "thread-a", text: "second" });
+  assert.deepEqual(client.starts[1], { threadId: "thread-a", input: "second" });
   client.complete("thread-a", "turn-2");
   await second;
   db.close();
