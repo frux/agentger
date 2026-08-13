@@ -45,7 +45,12 @@ export interface InlineKeyboardButton {
 export interface SendMessageOptions {
   messageThreadId?: number;
   replyMarkup?: { inline_keyboard: InlineKeyboardButton[][] };
+  parseMode?: "MarkdownV2";
 }
+
+export type TelegramReaction =
+  | { type: "emoji"; emoji: "👍" }
+  | { type: "custom_emoji"; custom_emoji_id: string };
 
 type TelegramEnvelope<T> = {
   ok: boolean;
@@ -92,6 +97,7 @@ export class TelegramApi {
       text,
       ...(options.messageThreadId === undefined ? {} : { message_thread_id: options.messageThreadId }),
       ...(options.replyMarkup === undefined ? {} : { reply_markup: options.replyMarkup }),
+      ...(options.parseMode === undefined ? {} : { parse_mode: options.parseMode }),
       disable_web_page_preview: true,
     });
   }
@@ -101,16 +107,26 @@ export class TelegramApi {
     messageId: number,
     text: string,
     replyMarkup?: SendMessageOptions["replyMarkup"],
+    parseMode?: SendMessageOptions["parseMode"],
   ): Promise<TelegramMessage | true> {
     return this.call<TelegramMessage | true>("editMessageText", {
       chat_id: chatId,
       message_id: messageId,
       text,
       ...(replyMarkup === undefined ? {} : { reply_markup: replyMarkup }),
+      ...(parseMode === undefined ? {} : { parse_mode: parseMode }),
       disable_web_page_preview: true,
     }).catch((error: unknown) => {
       if (error instanceof TelegramApiError && error.message.includes("message is not modified")) return true;
       throw error;
+    });
+  }
+
+  setMessageReaction(chatId: number, messageId: number, reaction: TelegramReaction): Promise<true> {
+    return this.call("setMessageReaction", {
+      chat_id: chatId,
+      message_id: messageId,
+      reaction: [reaction],
     });
   }
 

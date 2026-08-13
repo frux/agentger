@@ -45,7 +45,7 @@ test("forum_topic_created immediately provisions a Codex binding", async () => {
   assert.equal(binding?.title, "New agent");
   assert.deepEqual(starts, ["/projects/frux"]);
   assert.deepEqual(registrations, [{ threadId: "codex-1", model: "gpt-test" }]);
-  assert.match(sent[0] ?? "", /Agentger создал Codex session/u);
+  assert.match(sent[0] ?? "", /Создана новая сессия/u);
   db.close();
 });
 

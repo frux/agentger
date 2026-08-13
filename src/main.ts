@@ -55,6 +55,7 @@ export async function runAgentger(): Promise<void> {
     allowedUserIds: config.allowedUserIds,
     longPollSeconds: config.telegramLongPollSeconds,
     streamUpdateIntervalMs: config.streamUpdateIntervalMs,
+    completionReactionCustomEmojiId: config.telegramCompletionReactionCustomEmojiId,
     logger,
   });
 

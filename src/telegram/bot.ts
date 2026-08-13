@@ -1,45 +1,20 @@
-import type { ServerNotification } from "../app-server/generated/ServerNotification.js";
 import type { Logger } from "../logger.js";
 import { logger as defaultLogger } from "../logger.js";
-import type { SessionManager, TurnSink } from "../sessions/manager.js";
+import type { SessionManager } from "../sessions/manager.js";
 import type { ApprovalManager } from "./approvals.js";
 import type { TelegramApi, TelegramMessage, TelegramUpdate } from "./api.js";
 import type { TelegramCommands } from "./commands.js";
-import { TurnRenderer } from "./renderer.js";
 import type { TopicRouter } from "./router.js";
-import { StreamingMessage } from "./streaming-message.js";
 import type { TopicProvisioner } from "./topics.js";
 import { isExplicitBindingCommand } from "./commands.js";
 import type { TopicBinding } from "../db.js";
-
-class TelegramTurnSink implements TurnSink {
-  private readonly renderer = new TurnRenderer();
-  private finished = false;
-
-  constructor(private readonly message: StreamingMessage) {}
-
-  onNotification(notification: ServerNotification): void {
-    this.renderer.consume(notification);
-    if (notification.method === "turn/completed") {
-      this.finished = true;
-      void this.message.finish(this.renderer.render());
-    } else {
-      this.message.update(this.renderer.render());
-    }
-  }
-
-  async onError(error: unknown): Promise<void> {
-    if (!this.finished) {
-      this.finished = true;
-      await this.message.failed(error);
-    }
-  }
-}
+import { TelegramTurnSink } from "./turn-sink.js";
 
 export interface TelegramBotOptions {
   allowedUserIds: Set<number>;
   longPollSeconds: number;
   streamUpdateIntervalMs: number;
+  completionReactionCustomEmojiId: string | null;
   logger?: Logger;
 }
 
@@ -117,14 +92,16 @@ export class TelegramBot {
   private async handleText(message: TelegramMessage, binding: TopicBinding): Promise<void> {
     const text = message.text?.trim();
     if (!text) return;
-    const streaming = new StreamingMessage(
+    const sink = new TelegramTurnSink(
       this.telegram,
       binding.telegramChatId,
       binding.telegramThreadId,
-      this.options.streamUpdateIntervalMs,
+      {
+        streamUpdateIntervalMs: this.options.streamUpdateIntervalMs,
+        completionReactionCustomEmojiId: this.options.completionReactionCustomEmojiId,
+        logger: this.log,
+      },
     );
-    await streaming.start();
-    const sink = new TelegramTurnSink(streaming);
     const clientUserMessageId = `tg:${message.chat.id}:${binding.telegramThreadId}:${message.message_id}`;
     void this.sessions.enqueue(binding, text, clientUserMessageId, sink).catch(() => undefined);
   }

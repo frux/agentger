@@ -50,32 +50,32 @@ function renderApproval(request: ServerRequest): string {
   switch (request.method) {
     case "item/commandExecution/requestApproval":
       return [
-        "⚠️ Codex просит разрешение",
+        "⚠️ Требуется разрешение",
         request.params.command ? `Команда:\n${request.params.command}` : "Сетевой доступ",
         request.params.cwd ? `cwd:\n${request.params.cwd}` : "",
         request.params.reason ? `Причина:\n${request.params.reason}` : "",
       ].filter(Boolean).join("\n\n");
     case "item/fileChange/requestApproval":
       return [
-        "⚠️ Codex просит разрешение на изменение файлов",
+        "⚠️ Разрешить изменение файлов",
         request.params.grantRoot ? `Путь:\n${request.params.grantRoot}` : "",
         request.params.reason ? `Причина:\n${request.params.reason}` : "",
       ].filter(Boolean).join("\n\n");
     case "execCommandApproval":
       return [
-        "⚠️ Codex просит разрешение",
+        "⚠️ Требуется разрешение",
         `Команда:\n${request.params.command.join(" ")}`,
         `cwd:\n${request.params.cwd}`,
         request.params.reason ? `Причина:\n${request.params.reason}` : "",
       ].filter(Boolean).join("\n\n");
     case "applyPatchApproval":
       return [
-        "⚠️ Codex просит разрешение на изменение файлов",
+        "⚠️ Разрешить изменение файлов",
         `Файлы:\n${Object.keys(request.params.fileChanges).slice(0, 20).join("\n")}`,
         request.params.reason ? `Причина:\n${request.params.reason}` : "",
       ].filter(Boolean).join("\n\n");
     default:
-      return `⚠️ Неподдерживаемый запрос Codex: ${request.method}`;
+      return `⚠️ Неподдерживаемый запрос: ${request.method}`;
   }
 }
 
