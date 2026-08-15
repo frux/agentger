@@ -35,7 +35,8 @@ Telegram documents both `message_thread_id` and the `forum_topic_created` servic
 - separate Telegram messages for agent replies, reasoning summaries, plans, commands, file changes, and tool calls;
 - throttled edits while each agent reply streams, followed by a completion reaction on the final reply;
 - topic-scoped `typing` presence while a turn runs and a `👀` marker after the input is accepted;
-- Telegram photos, image documents, arbitrary files, audio, and voice messages as native Codex inputs;
+- Telegram photos, image documents, arbitrary files, and audio as native Codex inputs;
+- local Telegram voice transcription with NVIDIA Parakeet TDT 0.6B V3 before the turn reaches Codex;
 - command/file approvals through short opaque inline callback IDs with Allow/Deny, timeout, and duplicate handling;
 - interrupt, status, aggregated diff, history, and binding removal.
 
@@ -46,7 +47,8 @@ There are no Git assumptions: no branches or worktrees are created. Codex receiv
 - Linux VM and Node.js 22.5+;
 - Codex CLI installed and authenticated for the service account;
 - Telegram supergroup with Topics enabled;
-- Telegram bot token and an allowlisted Telegram user ID.
+- Telegram bot token and an allowlisted Telegram user ID;
+- `ffmpeg`, NVIDIA `nemo-speech`, and the Parakeet V3 Q8 GGUF for voice transcription.
 
 Verify Codex as the same account that will run Agentger:
 
@@ -55,6 +57,23 @@ codex --version
 codex login status
 codex app-server --help
 ```
+
+Install the official lightweight NVIDIA runtime and download the Parakeet V3 model once:
+
+```sh
+sudo apt-get install -y ffmpeg git cmake ninja-build g++ python3-pip
+git clone --recurse-submodules https://github.com/NVIDIA/NeMo-Speech.cpp.git
+cd NeMo-Speech.cpp
+scripts/install.sh --source
+cd /var/lib/agentger
+python3 -m pip install --user -U huggingface_hub
+export PATH="$HOME/.local/bin:$PATH"
+hf download nvidia/parakeet-tdt-0.6b-v3 \
+  parakeet-tdt-0.6b-v3.q8_0.gguf \
+  --local-dir models
+```
+
+The runtime and ready-to-run Q8 model are published by NVIDIA. `agentger doctor` checks `ffmpeg`, the model file, and whether `nemo-speech` can inspect it before the bot starts.
 
 ## Install as a Node.js CLI
 
@@ -80,7 +99,7 @@ CLI commands:
 
 - `agentger start` or simply `agentger` — run the bridge;
 - `agentger init` — create `.env` in the current directory without overwriting an existing file;
-- `agentger doctor` — validate the environment and Codex executable;
+- `agentger doctor` — validate the environment, Codex, ffmpeg, and Parakeet V3 runtime/model;
 - `agentger --version` and `agentger --help`.
 
 ## Configuration
@@ -94,6 +113,11 @@ TELEGRAM_ALLOWED_USER_IDS=123456789
 DATABASE_PATH=./data/bot.sqlite
 ATTACHMENT_DIRECTORY=./data/attachments
 TELEGRAM_MAX_ATTACHMENT_BYTES=20971520
+FFMPEG_BINARY=/usr/bin/ffmpeg
+PARAKEET_BINARY=/home/codex/.local/bin/nemo-speech
+PARAKEET_MODEL_PATH=./models/parakeet-tdt-0.6b-v3.q8_0.gguf
+PARAKEET_DEVICE=
+TRANSCRIPTION_TIMEOUT_MS=300000
 ALLOWED_PROJECT_ROOTS=/home/codex/projects,/home/codex/src
 PROJECTS=frux=/home/codex/projects/frux,backend=/home/codex/src/backend
 DEFAULT_PROJECT=frux
@@ -134,10 +158,13 @@ Creating any other topic now creates its Codex session automatically. The first 
 Send a photo, a file, an audio track, or a Telegram voice message to any Codex topic. Captions and attachments are delivered in the same turn:
 
 - photos and image documents become app-server `localImage` inputs;
-- voice messages, audio, and audio documents become `localAudio` inputs;
+- audio and audio documents become app-server `localAudio` inputs;
+- Telegram voice messages are decoded from OGG/Opus to private 16 kHz mono PCM WAV files, transcribed locally by `parakeet-tdt-0.6b-v3`, and sent to Codex as text;
 - other documents are exposed as a local file mention plus an absolute path, so the agent can inspect them with its normal tools.
 
-Agentger selects the largest variant of a Telegram photo and downloads files as a bounded stream. Telegram voice files named `.oga` are saved as `.ogg` so Codex recognizes their OGG/Opus container without audio transcoding. `TELEGRAM_MAX_ATTACHMENT_BYTES` defaults to 20 MB, the cloud Bot API download limit, and may be lowered. Files are stored under `ATTACHMENT_DIRECTORY` in per-chat/topic/message directories with private permissions and sanitized names. They remain there so later turns can refer to them; remove old files according to your own retention policy. Keep this directory outside Git repositories and protect it like the Codex account's other working data.
+Renaming `.oga` to `.ogg` is not treated as conversion: `ffmpeg` decodes the Opus stream before ASR, and the temporary WAV is deleted immediately after transcription. `PARAKEET_DEVICE` may force a supported backend such as `cpu` or `cuda:0`; when empty, `nemo-speech` selects one automatically. `TRANSCRIPTION_TIMEOUT_MS` defaults to five minutes. If decoding or recognition fails, Agentger reports the error in the Telegram topic and does not start a Codex turn with unusable audio.
+
+Agentger selects the largest variant of a Telegram photo and downloads files as a bounded stream. `TELEGRAM_MAX_ATTACHMENT_BYTES` defaults to 20 MB, the cloud Bot API download limit, and may be lowered. Files are stored under `ATTACHMENT_DIRECTORY` in per-chat/topic/message directories with private permissions and sanitized names. They remain there so later turns can refer to them; remove old files according to your own retention policy. Keep this directory outside Git repositories and protect it like the Codex account's other working data.
 
 ## Message format
 

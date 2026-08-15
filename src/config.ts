@@ -13,6 +13,11 @@ export interface Config {
   databasePath: string;
   attachmentDirectory: string;
   telegramMaxAttachmentBytes: number;
+  ffmpegBinary: string;
+  parakeetBinary: string;
+  parakeetModelPath: string;
+  parakeetDevice: string | null;
+  transcriptionTimeoutMs: number;
   allowedProjectRoots: string[];
   projects: ProjectSeed[];
   defaultProject: string | null;
@@ -128,6 +133,13 @@ export function loadConfig(): Config {
     databasePath,
     attachmentDirectory: resolve(process.env.ATTACHMENT_DIRECTORY ?? "./data/attachments"),
     telegramMaxAttachmentBytes,
+    ffmpegBinary: process.env.FFMPEG_BINARY?.trim() || "ffmpeg",
+    parakeetBinary: process.env.PARAKEET_BINARY?.trim() || "nemo-speech",
+    parakeetModelPath: resolve(
+      process.env.PARAKEET_MODEL_PATH ?? "./models/parakeet-tdt-0.6b-v3.q8_0.gguf",
+    ),
+    parakeetDevice: process.env.PARAKEET_DEVICE?.trim() || null,
+    transcriptionTimeoutMs: positiveInt("TRANSCRIPTION_TIMEOUT_MS", 5 * 60_000),
     allowedProjectRoots: parseRoots(required("ALLOWED_PROJECT_ROOTS")),
     projects: parseProjects(process.env.PROJECTS),
     defaultProject: process.env.DEFAULT_PROJECT?.trim() || null,

@@ -93,24 +93,6 @@ export class TelegramBot {
   }
 
   private async handleInput(message: TelegramMessage, binding: TopicBinding): Promise<void> {
-    let input: UserInput[];
-    try {
-      input = await this.attachments.prepare(message);
-    } catch (error) {
-      this.log.warn("Telegram attachment failed", {
-        chatId: message.chat.id,
-        threadId: binding.telegramThreadId,
-        messageId: message.message_id,
-        error: String(error),
-      });
-      await this.telegram.sendMessage(
-        binding.telegramChatId,
-        `❌ ${error instanceof Error ? error.message : String(error)}`,
-        { messageThreadId: binding.telegramThreadId },
-      );
-      return;
-    }
-    if (input.length === 0) return;
     const sink = new TelegramTurnSink(
       this.telegram,
       binding.telegramChatId,
@@ -122,6 +104,24 @@ export class TelegramBot {
         logger: this.log,
       },
     );
+    sink.onProcessingStarted();
+    let input: UserInput[];
+    try {
+      input = await this.attachments.prepare(message);
+    } catch (error) {
+      this.log.warn("Telegram attachment failed", {
+        chatId: message.chat.id,
+        threadId: binding.telegramThreadId,
+        messageId: message.message_id,
+        error: String(error),
+      });
+      await sink.onError(error);
+      return;
+    }
+    if (input.length === 0) {
+      sink.stopProcessing();
+      return;
+    }
     const clientUserMessageId = `tg:${message.chat.id}:${binding.telegramThreadId}:${message.message_id}`;
     void this.sessions.enqueue(binding, input, clientUserMessageId, sink).catch(() => undefined);
   }

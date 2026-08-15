@@ -48,6 +48,10 @@ export class TelegramTurnSink implements TurnSink {
     this.typing.start();
   }
 
+  stopProcessing(): void {
+    this.typing.stop();
+  }
+
   onInputAccepted(): void {
     this.markInputAccepted();
   }

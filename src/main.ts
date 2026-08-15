@@ -12,6 +12,7 @@ import { TelegramBot } from "./telegram/bot.js";
 import { TelegramCommands } from "./telegram/commands.js";
 import { TopicRouter } from "./telegram/router.js";
 import { TopicProvisioner } from "./telegram/topics.js";
+import { ParakeetVoiceTranscriber } from "./transcription/parakeet.js";
 
 export async function runAgentger(): Promise<void> {
   const config = loadConfig();
@@ -32,10 +33,18 @@ export async function runAgentger(): Promise<void> {
   });
   const sessions = new SessionManager(client, db);
   const telegram = new TelegramApi(config.telegramBotToken, logger);
+  const voiceTranscriber = new ParakeetVoiceTranscriber({
+    ffmpegBinary: config.ffmpegBinary,
+    parakeetBinary: config.parakeetBinary,
+    parakeetModelPath: config.parakeetModelPath,
+    parakeetDevice: config.parakeetDevice,
+    timeoutMs: config.transcriptionTimeoutMs,
+  });
   const attachments = new TelegramAttachmentManager(
     telegram,
     config.attachmentDirectory,
     config.telegramMaxAttachmentBytes,
+    voiceTranscriber,
   );
   const router = new TopicRouter(db);
   const approvals = new ApprovalManager(

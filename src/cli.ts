@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { constants, copyFileSync, existsSync } from "node:fs";
+import { constants, copyFileSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { loadConfig } from "./config.js";
@@ -17,7 +17,7 @@ Telegram topic UI for Codex agents.
 Usage:
   agentger [start]       Start the Telegram bridge and codex app-server
   agentger init          Create .env from the packaged example
-  agentger doctor        Validate configuration and Codex availability
+  agentger doctor        Validate configuration, Codex, and voice ASR
   agentger --version     Print the version
   agentger --help        Show this help`;
 }
@@ -45,6 +45,20 @@ async function doctor(): Promise<void> {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   }).trim();
+  const ffmpegVersion = execFileSync(config.ffmpegBinary, ["-version"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).split(/\r?\n/u)[0]?.trim() || "available";
+  if (!existsSync(config.parakeetModelPath)) {
+    throw new Error(`Parakeet V3 model not found: ${config.parakeetModelPath}`);
+  }
+  const model = statSync(config.parakeetModelPath);
+  if (!model.isFile()) throw new Error(`Parakeet V3 model is not a file: ${config.parakeetModelPath}`);
+  execFileSync(config.parakeetBinary, ["model", "info", config.parakeetModelPath], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    timeout: config.transcriptionTimeoutMs,
+  });
   const [{ BridgeDatabase }, { ProjectResolver }] = await Promise.all([
     import("./db.js"),
     import("./projects.js"),
@@ -61,6 +75,9 @@ async function doctor(): Promise<void> {
   process.stdout.write([
     "Agentger configuration is valid.",
     `Codex: ${version}`,
+    `FFmpeg: ${ffmpegVersion}`,
+    `Parakeet V3: ${config.parakeetModelPath}`,
+    `Parakeet runtime: ${config.parakeetBinary}${config.parakeetDevice ? ` (${config.parakeetDevice})` : ""}`,
     `Database: ${config.databasePath}`,
     `Attachments: ${config.attachmentDirectory} (max ${config.telegramMaxAttachmentBytes} bytes)`,
     `Allowed roots: ${config.allowedProjectRoots.join(", ")}`,
