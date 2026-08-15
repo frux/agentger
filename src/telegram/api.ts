@@ -95,6 +95,7 @@ export interface SendMessageOptions {
   messageThreadId?: number;
   replyMarkup?: { inline_keyboard: InlineKeyboardButton[][] };
   parseMode?: "MarkdownV2";
+  disableNotification?: boolean;
 }
 
 export type TelegramReaction =
@@ -149,6 +150,7 @@ export class TelegramApi {
       ...(options.messageThreadId === undefined ? {} : { message_thread_id: options.messageThreadId }),
       ...(options.replyMarkup === undefined ? {} : { reply_markup: options.replyMarkup }),
       ...(options.parseMode === undefined ? {} : { parse_mode: options.parseMode }),
+      ...(options.disableNotification === undefined ? {} : { disable_notification: options.disableNotification }),
       disable_web_page_preview: true,
     });
   }

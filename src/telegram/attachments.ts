@@ -49,10 +49,11 @@ export class TelegramAttachmentManager {
       input.push({ type: "localImage", path });
     }
     if (message.document) {
-      const path = await this.download(message, "document", message.document);
+      const audioDocument = isAudio(message.document);
+      const path = await this.download(message, audioDocument ? "audio" : "document", message.document);
       if (isImage(message.document)) {
         input.push({ type: "localImage", path });
-      } else if (isAudio(message.document)) {
+      } else if (audioDocument) {
         input.push({ type: "localAudio", path });
       } else {
         const name = cleanFileName(message.document.file_name) ?? basename(path);
@@ -166,10 +167,16 @@ function documentDescription(path: string, name: string, document: TelegramDocum
 
 function destinationName(kind: MediaKind, media: DownloadableMedia, remotePath: string): string {
   const named = "file_name" in media ? cleanFileName(media.file_name) : null;
-  if (named) return named;
+  if (named) return normalizeAudioExtension(kind, named);
   const remoteExtension = safeExtension(remotePath);
   const id = cleanSegment(media.file_unique_id).slice(0, 64) || "file";
-  return `${kind}-${id}${remoteExtension}`;
+  return normalizeAudioExtension(kind, `${kind}-${id}${remoteExtension}`);
+}
+
+function normalizeAudioExtension(kind: MediaKind, name: string): string {
+  return (kind === "voice" || kind === "audio") && /\.oga$/iu.test(name)
+    ? `${name.slice(0, -4)}.ogg`
+    : name;
 }
 
 function cleanFileName(value: string | undefined): string | null {

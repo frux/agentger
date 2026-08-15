@@ -1,6 +1,6 @@
 {
   "name": "agentger",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Telegram topic UI for long-running Codex agents via codex app-server",
   "license": "MIT",
   "author": "Vladimir Kudinov <login@frux.me>",

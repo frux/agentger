@@ -28,6 +28,7 @@ export class StreamingMessage {
     private readonly threadId: number,
     private readonly intervalMs = 750,
     private readonly parseMode?: SendMessageOptions["parseMode"],
+    private readonly disableNotification = false,
   ) {}
 
   async start(text = "…"): Promise<number> {
@@ -36,6 +37,7 @@ export class StreamingMessage {
     const message = await this.telegram.sendMessage(this.chatId, first, {
       messageThreadId: this.threadId,
       ...(this.parseMode === undefined ? {} : { parseMode: this.parseMode }),
+      ...(this.disableNotification ? { disableNotification: true } : {}),
     });
     this.messageId = message.message_id;
     this.lastMessageId = message.message_id;
@@ -75,6 +77,7 @@ export class StreamingMessage {
       const message = await this.telegram.sendMessage(this.chatId, part, {
         messageThreadId: this.threadId,
         ...(this.parseMode === undefined ? {} : { parseMode: this.parseMode }),
+        ...(this.disableNotification ? { disableNotification: true } : {}),
       });
       this.lastMessageId = message.message_id;
     }

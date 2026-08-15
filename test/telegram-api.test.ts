@@ -6,6 +6,29 @@ import { test } from "node:test";
 import { nullLogger } from "../src/logger.js";
 import { TelegramApi } from "../src/telegram/api.js";
 
+test("Telegram API maps silent messages to disable_notification", async () => {
+  let requestBody: unknown;
+  const fetchImpl: typeof fetch = async (_input, init) => {
+    requestBody = JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({
+      ok: true,
+      result: { message_id: 30, chat: { id: -1001, type: "supergroup" } },
+    }), { status: 200 });
+  };
+  const api = new TelegramApi("test-token", nullLogger, fetchImpl);
+  await api.sendMessage(-1001, "🔧 github/fetch_file", {
+    messageThreadId: 42,
+    disableNotification: true,
+  });
+  assert.deepEqual(requestBody, {
+    chat_id: -1001,
+    text: "🔧 github/fetch_file",
+    message_thread_id: 42,
+    disable_notification: true,
+    disable_web_page_preview: true,
+  });
+});
+
 test("Telegram API sends completion reactions with the Bot API shape", async () => {
   let requestUrl = "";
   let requestBody: unknown;

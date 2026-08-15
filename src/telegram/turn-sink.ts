@@ -112,6 +112,7 @@ export class TelegramTurnSink implements TurnSink {
         this.threadId,
         this.options.streamUpdateIntervalMs,
         update.parseMode,
+        update.kind !== "agent" && update.kind !== "error",
       );
       this.messages.set(update.key, message);
       const messageId = await message.start(update.text);

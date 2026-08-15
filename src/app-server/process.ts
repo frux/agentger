@@ -183,7 +183,7 @@ export class AppServerSupervisor extends EventEmitter {
 
   private async initialize(rpc: JsonRpcClient): Promise<void> {
     const response = await rpc.request<InitializeResponse>("initialize", {
-      clientInfo: { name: "agentger", title: "Agentger", version: "0.5.0" },
+      clientInfo: { name: "agentger", title: "Agentger", version: "0.5.1" },
       capabilities: {
         experimentalApi: false,
         requestAttestation: false,
