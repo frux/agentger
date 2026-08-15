@@ -6,6 +6,8 @@ import { test } from "node:test";
 import type { TelegramFileDownloader } from "../src/telegram/attachments.js";
 import { TelegramAttachmentManager } from "../src/telegram/attachments.js";
 import type { TelegramFile, TelegramMessage } from "../src/telegram/api.js";
+import type { VoiceTranscriber } from "../src/transcription/parakeet.js";
+import { AppServerClient } from "../src/app-server/client.js";
 
 class FakeDownloader implements TelegramFileDownloader {
   requested: string[] = [];
@@ -28,6 +30,26 @@ class FakeDownloader implements TelegramFileDownloader {
   }
 }
 
+class FakeVoiceTranscriber implements VoiceTranscriber {
+  paths: string[] = [];
+
+  constructor(private readonly transcript = "Это расшифрованное голосовое сообщение.") {}
+
+  async transcribe(path: string): Promise<string> {
+    this.paths.push(path);
+    return this.transcript;
+  }
+}
+
+function attachmentManager(
+  downloader: TelegramFileDownloader,
+  root: string,
+  maxBytes: number,
+  transcriber: VoiceTranscriber = new FakeVoiceTranscriber(),
+): TelegramAttachmentManager {
+  return new TelegramAttachmentManager(downloader, root, maxBytes, transcriber);
+}
+
 function message(overrides: Partial<TelegramMessage>): TelegramMessage {
   return {
     message_id: 77,
@@ -42,7 +64,7 @@ test("photo captions and the largest photo become one multimodal turn", async ()
   const root = await mkdtemp(join(tmpdir(), "agentger-attachments-"));
   const downloader = new FakeDownloader();
   try {
-    const manager = new TelegramAttachmentManager(downloader, root, 20 * 1024 * 1024);
+    const manager = attachmentManager(downloader, root, 20 * 1024 * 1024);
     const input = await manager.prepare(message({
       caption: "Что изображено?",
       photo: [
@@ -70,7 +92,7 @@ test("arbitrary documents get a sanitized local mention and metadata", async () 
   const root = await mkdtemp(join(tmpdir(), "agentger-attachments-"));
   const downloader = new FakeDownloader();
   try {
-    const manager = new TelegramAttachmentManager(downloader, root, 1_000);
+    const manager = attachmentManager(downloader, root, 1_000);
     const input = await manager.prepare(message({
       document: {
         file_id: "report",
@@ -93,18 +115,44 @@ test("arbitrary documents get a sanitized local mention and metadata", async () 
   }
 });
 
-test("voice messages become localAudio and oversized files fail before getFile", async () => {
+test("Telegram voice is transcribed before Codex receives the turn", async () => {
   const root = await mkdtemp(join(tmpdir(), "agentger-attachments-"));
   const downloader = new FakeDownloader();
+  const transcriber = new FakeVoiceTranscriber("Проверь, пожалуйста, статус сервиса.");
   try {
-    const manager = new TelegramAttachmentManager(downloader, root, 100);
+    const manager = attachmentManager(downloader, root, 100, transcriber);
     const voice = await manager.prepare(message({
       voice: { file_id: "voice", file_unique_id: "voice-id", duration: 3, file_size: 4, mime_type: "audio/ogg" },
     }));
-    assert.equal(voice[0]?.type, "localAudio");
-    if (voice[0]?.type !== "localAudio") throw new Error("localAudio input expected");
-    assert.match(voice[0].path, /voice-voice-id\.ogg$/u);
-    assert.doesNotMatch(voice[0].path, /\.oga$/u);
+    assert.deepEqual(voice, [{
+      type: "text",
+      text: "Проверь, пожалуйста, статус сервиса.",
+      text_elements: [],
+    }]);
+    assert.equal(transcriber.paths.length, 1);
+    assert.match(transcriber.paths[0] ?? "", /voice-voice-id\.ogg$/u);
+
+    const requests: Array<{ method: string; params: unknown }> = [];
+    const client = new AppServerClient({
+      request(method: string, params: unknown) {
+        requests.push({ method, params });
+        return Promise.resolve({ turn: { id: "turn-voice" } });
+      },
+    } as never);
+    await client.startTurn("thread-voice", voice, "tg:-1001:42:77");
+    assert.deepEqual(requests, [{
+      method: "turn/start",
+      params: {
+        threadId: "thread-voice",
+        input: [{
+          type: "text",
+          text: "Проверь, пожалуйста, статус сервиса.",
+          text_elements: [],
+        }],
+        clientUserMessageId: "tg:-1001:42:77",
+      },
+    }]);
+
     await assert.rejects(
       manager.prepare(message({
         document: { file_id: "huge", file_unique_id: "huge-id", file_size: 101 },
@@ -121,7 +169,7 @@ test("audio documents also normalize their .oga filename to .ogg", async () => {
   const root = await mkdtemp(join(tmpdir(), "agentger-attachments-"));
   const downloader = new FakeDownloader();
   try {
-    const manager = new TelegramAttachmentManager(downloader, root, 100);
+    const manager = attachmentManager(downloader, root, 100);
     const audio = await manager.prepare(message({
       document: {
         file_id: "audio-document",

@@ -11,6 +11,7 @@ import type {
   TelegramVoice,
 } from "./api.js";
 import { TelegramFileTooLargeError } from "./api.js";
+import type { VoiceTranscriber } from "../transcription/parakeet.js";
 
 export interface TelegramFileDownloader {
   getFile(fileId: string): Promise<TelegramFile>;
@@ -34,6 +35,7 @@ export class TelegramAttachmentManager {
     private readonly telegram: TelegramFileDownloader,
     attachmentDirectory: string,
     private readonly maxBytes: number,
+    private readonly voiceTranscriber: VoiceTranscriber,
   ) {
     this.root = resolve(attachmentDirectory);
   }
@@ -65,7 +67,15 @@ export class TelegramAttachmentManager {
       input.push({ type: "localAudio", path: await this.download(message, "audio", message.audio) });
     }
     if (message.voice) {
-      input.push({ type: "localAudio", path: await this.download(message, "voice", message.voice) });
+      const path = await this.download(message, "voice", message.voice);
+      try {
+        input.push(textInput(await this.voiceTranscriber.transcribe(path)));
+      } catch (error) {
+        throw new TelegramAttachmentError(
+          error instanceof Error ? error.message : "Не удалось транскрибировать голосовое сообщение",
+          error,
+        );
+      }
     }
     return input;
   }
