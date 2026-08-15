@@ -143,6 +143,8 @@ Agentger selects the largest variant of a Telegram photo and downloads files as 
 
 Every app-server item has its own Telegram message. Agent replies stream by editing only their own message. Tool calls use a compact `🔧 server/tool` label. Commands are rendered as Bash code blocks:
 
+Intermediate service activity—reasoning, plans, commands, file changes, and tool calls—is sent with Telegram notifications disabled. Agent replies, approval requests, command responses, and terminal errors keep normal notifications because they may require attention.
+
 ````text
 ```bash
 /usr/bin/bash -lc "sed -n '1,240p' /home/frux/.agents/skills/frux-voice/SKILL.md"

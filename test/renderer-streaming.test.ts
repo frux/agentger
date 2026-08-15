@@ -31,6 +31,23 @@ test("streaming updates are debounced to the latest edit", async () => {
   assert.deepEqual(edits, ["three", "final"]);
 });
 
+test("silent streaming messages keep notifications disabled across split parts", async () => {
+  const options: unknown[] = [];
+  const api = {
+    async sendMessage(_chatId: number, _text: string, sendOptions?: unknown) {
+      options.push(sendOptions);
+      return { message_id: options.length };
+    },
+    async editMessageText() { return true; },
+  };
+  const message = new StreamingMessage(api, 1, 2, 1, undefined, true);
+  await message.finish("x".repeat(4_500));
+  assert.deepEqual(options, [
+    { messageThreadId: 2, disableNotification: true },
+    { messageThreadId: 2, disableNotification: true },
+  ]);
+});
+
 function commandItem(status: "inProgress" | "completed" = "completed"): ThreadItem {
   return {
     type: "commandExecution",
@@ -155,7 +172,13 @@ test("turn sink sends each activity separately and reacts to the final agent mes
     "Изменения готовы.",
   ]);
   assert.deepEqual(edits, []);
-  assert.deepEqual(sent[1]?.options, { messageThreadId: 2, parseMode: "MarkdownV2" });
+  assert.deepEqual(sent[0]?.options, { messageThreadId: 2 });
+  assert.deepEqual(sent[1]?.options, {
+    messageThreadId: 2,
+    parseMode: "MarkdownV2",
+    disableNotification: true,
+  });
+  assert.deepEqual(sent[2]?.options, { messageThreadId: 2 });
   assert.deepEqual(reactions, [
     { messageId: 7, reaction: { type: "emoji", emoji: "👀" } },
     { messageId: 12, reaction: { type: "emoji", emoji: "👍" } },
