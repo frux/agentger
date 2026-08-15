@@ -3,7 +3,7 @@
 Agentger turns Telegram topics into remote UIs for long-running Codex agents. It supervises `codex app-server --stdio` directly and does not use `@openai/codex-sdk`.
 
 ```sh
-npm install -g https://github.com/frux/agentger/releases/download/v0.5.0/agentger-0.5.0.tgz
+npm install -g https://github.com/frux/agentger/releases/download/v0.5.1/agentger-0.5.1.tgz
 agentger init
 # edit .env
 agentger doctor
@@ -61,7 +61,7 @@ codex app-server --help
 Install the ready-to-run package from GitHub Releases:
 
 ```sh
-npm install -g https://github.com/frux/agentger/releases/download/v0.5.0/agentger-0.5.0.tgz
+npm install -g https://github.com/frux/agentger/releases/download/v0.5.1/agentger-0.5.1.tgz
 agentger --version
 ```
 
@@ -137,7 +137,7 @@ Send a photo, a file, an audio track, or a Telegram voice message to any Codex t
 - voice messages, audio, and audio documents become `localAudio` inputs;
 - other documents are exposed as a local file mention plus an absolute path, so the agent can inspect them with its normal tools.
 
-Agentger selects the largest variant of a Telegram photo and downloads files as a bounded stream. `TELEGRAM_MAX_ATTACHMENT_BYTES` defaults to 20 MB, the cloud Bot API download limit, and may be lowered. Files are stored under `ATTACHMENT_DIRECTORY` in per-chat/topic/message directories with private permissions and sanitized names. They remain there so later turns can refer to them; remove old files according to your own retention policy. Keep this directory outside Git repositories and protect it like the Codex account's other working data.
+Agentger selects the largest variant of a Telegram photo and downloads files as a bounded stream. Telegram voice files named `.oga` are saved as `.ogg` so Codex recognizes their OGG/Opus container without audio transcoding. `TELEGRAM_MAX_ATTACHMENT_BYTES` defaults to 20 MB, the cloud Bot API download limit, and may be lowered. Files are stored under `ATTACHMENT_DIRECTORY` in per-chat/topic/message directories with private permissions and sanitized names. They remain there so later turns can refer to them; remove old files according to your own retention policy. Keep this directory outside Git repositories and protect it like the Codex account's other working data.
 
 ## Message format
 

@@ -17,7 +17,7 @@ class FakeDownloader implements TelegramFileDownloader {
       file_id: fileId,
       file_unique_id: `unique-${fileId}`,
       file_size: 4,
-      file_path: `telegram/${fileId}.bin`,
+      file_path: fileId === "voice" ? "voice/file.oga" : `telegram/${fileId}.bin`,
     };
   }
 
@@ -102,6 +102,9 @@ test("voice messages become localAudio and oversized files fail before getFile",
       voice: { file_id: "voice", file_unique_id: "voice-id", duration: 3, file_size: 4, mime_type: "audio/ogg" },
     }));
     assert.equal(voice[0]?.type, "localAudio");
+    if (voice[0]?.type !== "localAudio") throw new Error("localAudio input expected");
+    assert.match(voice[0].path, /voice-voice-id\.ogg$/u);
+    assert.doesNotMatch(voice[0].path, /\.oga$/u);
     await assert.rejects(
       manager.prepare(message({
         document: { file_id: "huge", file_unique_id: "huge-id", file_size: 101 },
@@ -109,6 +112,28 @@ test("voice messages become localAudio and oversized files fail before getFile",
       /превышает лимит/u,
     );
     assert.deepEqual(downloader.requested, ["voice"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("audio documents also normalize their .oga filename to .ogg", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agentger-attachments-"));
+  const downloader = new FakeDownloader();
+  try {
+    const manager = new TelegramAttachmentManager(downloader, root, 100);
+    const audio = await manager.prepare(message({
+      document: {
+        file_id: "audio-document",
+        file_unique_id: "audio-document-id",
+        file_name: "recording.oga",
+        mime_type: "audio/ogg",
+        file_size: 4,
+      },
+    }));
+    assert.equal(audio[0]?.type, "localAudio");
+    if (audio[0]?.type !== "localAudio") throw new Error("localAudio input expected");
+    assert.match(audio[0].path, /recording\.ogg$/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
