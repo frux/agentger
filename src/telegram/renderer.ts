@@ -12,7 +12,7 @@ export interface TurnMessageUpdate {
   kind: TurnMessageKind;
   text: string;
   completed: boolean;
-  parseMode?: "MarkdownV2";
+  format?: "MarkdownV2" | "RichMarkdown";
 }
 
 function clean(text: string): string {
@@ -116,7 +116,9 @@ export class TurnRenderer {
   private consumeItem(item: ThreadItem, completed: boolean): TurnMessageUpdate[] {
     if (item.type === "agentMessage") {
       this.agentMessages.set(item.id, item.text);
-      return item.text.trim() ? [this.message(item.id, "agent", item.text, completed)] : [];
+      return item.text.trim()
+        ? [{ ...this.message(item.id, "agent", item.text, completed), format: "RichMarkdown" }]
+        : [];
     }
     if (item.type === "reasoning") {
       const summary = item.summary.join("\n");
@@ -127,7 +129,7 @@ export class TurnRenderer {
     if (item.type === "commandExecution") {
       return [{
         ...this.message(item.id, "command", markdownCode(item.command), completed),
-        parseMode: "MarkdownV2",
+        format: "MarkdownV2",
       }];
     }
     if (item.type === "fileChange") {

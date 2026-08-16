@@ -33,6 +33,7 @@ Telegram documents both `message_thread_id` and the `forum_topic_created` servic
 - canonical `realpath` checks against `ALLOWED_PROJECT_ROOTS`, including symlink-escape protection;
 - one FIFO per Codex thread while different topics can execute concurrently;
 - separate Telegram messages for agent replies, reasoning summaries, plans, commands, file changes, and tool calls;
+- native Telegram Rich Markdown for final agent replies, including links, lists, tables, quotations, and code;
 - throttled edits while each agent reply streams, followed by a completion reaction on the final reply;
 - topic-scoped `typing` presence while a turn runs and a `👀` marker after the input is accepted;
 - Telegram photos, image documents, arbitrary files, and audio as native Codex inputs;
@@ -171,6 +172,8 @@ Agentger selects the largest variant of a Telegram photo and downloads files as 
 Every app-server item has its own Telegram message. Agent replies stream by editing only their own message. Tool calls use a compact `🔧 server/tool` label. Commands are rendered as Bash code blocks:
 
 Intermediate service activity—reasoning, plans, commands, file changes, and tool calls—is sent with Telegram notifications disabled. Agent replies, approval requests, command responses, and terminal errors keep normal notifications because they may require attention.
+
+Final agent replies use native Telegram Rich Messages with Rich Markdown. Bold and italic text, inline links, headings, lists, tables, quotations, code, and other supported GFM-style constructs are rendered by Telegram instead of being shown as Markdown punctuation. While a reply is still streaming, Agentger edits a plain-text preview so incomplete syntax such as an unmatched `**` can't break an update; completion atomically replaces it with rich content. If Telegram rejects a particular rich message or an older local Bot API server doesn't support it, Agentger logs the error and falls back to lossless plain text.
 
 ````text
 ```bash
