@@ -246,6 +246,62 @@ test("streaming agent text stays editable and becomes rich on completion", async
   assert.deepEqual(richEdits, ["Начало **жирного текста**"]);
 });
 
+test("turn sink preserves rich formatting when an agent message starts with a delta", async () => {
+  const plainSent: string[] = [];
+  const plainEdits: string[] = [];
+  const richSent: string[] = [];
+  const richEdits: string[] = [];
+  const telegram = {
+    async sendMessage(_chatId: number, text: string) {
+      plainSent.push(text);
+      return { message_id: 20 };
+    },
+    async editMessageText(_chatId: number, _messageId: number, text: string) {
+      plainEdits.push(text);
+      return true;
+    },
+    async sendRichMessage(_chatId: number, markdown: string) {
+      richSent.push(markdown);
+      return { message_id: 21 };
+    },
+    async editRichMessage(_chatId: number, _messageId: number, markdown: string) {
+      richEdits.push(markdown);
+      return true;
+    },
+    async setMessageReaction() { return true as const; },
+    async sendChatAction() { return true as const; },
+  };
+  const sink = new TelegramTurnSink(telegram, 1, 2, {
+    streamUpdateIntervalMs: 1_000,
+    completionReactionCustomEmojiId: null,
+    inboundMessageId: 7,
+  });
+  sink.onNotification({
+    method: "item/agentMessage/delta",
+    params: {
+      threadId: "thread-1",
+      turnId: "turn-1",
+      itemId: "agent-1",
+      delta: "Начало **жирного",
+    },
+  });
+  sink.onNotification({
+    method: "item/completed",
+    params: {
+      threadId: "thread-1",
+      turnId: "turn-1",
+      item: agentItem("agent-1", "Начало **жирного текста**"),
+      completedAtMs: 1,
+    },
+  });
+  await sink.drain();
+
+  assert.deepEqual(plainSent, ["Начало **жирного"]);
+  assert.deepEqual(plainEdits, []);
+  assert.deepEqual(richSent, []);
+  assert.deepEqual(richEdits, ["Начало **жирного текста**"]);
+});
+
 test("rich message rejection falls back to lossless plain text", async () => {
   const plain: string[] = [];
   const api = {

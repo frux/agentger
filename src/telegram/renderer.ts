@@ -77,7 +77,9 @@ export class TurnRenderer {
       case "item/agentMessage/delta": {
         const text = (this.agentMessages.get(params.itemId) ?? "") + params.delta;
         this.agentMessages.set(params.itemId, text);
-        return text.trim() ? [this.message(params.itemId, "agent", text, false)] : [];
+        return text.trim()
+          ? [{ ...this.message(params.itemId, "agent", text, false), format: "RichMarkdown" }]
+          : [];
       }
       case "item/reasoning/summaryTextDelta": {
         const text = (this.reasoning.get(params.itemId) ?? "") + params.delta;
