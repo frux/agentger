@@ -3,7 +3,7 @@
 Agentger turns Telegram topics into remote UIs for long-running Codex agents. It supervises `codex app-server --stdio` directly and does not use `@openai/codex-sdk`.
 
 ```sh
-npm install -g https://github.com/frux/agentger/releases/download/v0.5.1/agentger-0.5.1.tgz
+npm install -g https://github.com/frux/agentger/releases/download/v0.5.2/agentger-0.5.2.tgz
 agentger init
 # edit .env
 agentger doctor
@@ -81,7 +81,7 @@ The runtime and ready-to-run Q8 model are published by NVIDIA. `agentger doctor`
 Install the ready-to-run package from GitHub Releases:
 
 ```sh
-npm install -g https://github.com/frux/agentger/releases/download/v0.5.1/agentger-0.5.1.tgz
+npm install -g https://github.com/frux/agentger/releases/download/v0.5.2/agentger-0.5.2.tgz
 agentger --version
 ```
 

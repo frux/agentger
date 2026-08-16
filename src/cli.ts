@@ -7,7 +7,7 @@ import { resolve } from "node:path";
 import { loadConfig } from "./config.js";
 import { logger } from "./logger.js";
 
-const VERSION = "0.5.1";
+const VERSION = "0.5.2";
 
 function usage(): string {
   return `Agentger ${VERSION}
