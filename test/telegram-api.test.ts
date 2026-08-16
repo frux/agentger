@@ -29,6 +29,43 @@ test("Telegram API maps silent messages to disable_notification", async () => {
   });
 });
 
+test("Telegram API sends and edits native rich Markdown messages", async () => {
+  const requests: Array<{ url: string; body: unknown }> = [];
+  const fetchImpl: typeof fetch = async (input, init) => {
+    requests.push({ url: String(input), body: JSON.parse(String(init?.body)) });
+    return new Response(JSON.stringify({
+      ok: true,
+      result: { message_id: 30, chat: { id: -1001, type: "supergroup" } },
+    }), { status: 200 });
+  };
+  const api = new TelegramApi("test-token", nullLogger, fetchImpl);
+  const markdown = "**Готово** — [открыть](https://example.com)";
+  await api.sendRichMessage(-1001, markdown, {
+    messageThreadId: 42,
+    disableNotification: true,
+  });
+  await api.editRichMessage(-1001, 30, `${markdown}\n\n- пункт`);
+  assert.deepEqual(requests, [
+    {
+      url: "https://api.telegram.org/bottest-token/sendRichMessage",
+      body: {
+        chat_id: -1001,
+        rich_message: { markdown },
+        message_thread_id: 42,
+        disable_notification: true,
+      },
+    },
+    {
+      url: "https://api.telegram.org/bottest-token/editMessageText",
+      body: {
+        chat_id: -1001,
+        message_id: 30,
+        rich_message: { markdown: `${markdown}\n\n- пункт` },
+      },
+    },
+  ]);
+});
+
 test("Telegram API sends completion reactions with the Bot API shape", async () => {
   let requestUrl = "";
   let requestBody: unknown;

@@ -98,6 +98,11 @@ export interface SendMessageOptions {
   disableNotification?: boolean;
 }
 
+export interface SendRichMessageOptions {
+  messageThreadId?: number;
+  disableNotification?: boolean;
+}
+
 export type TelegramReaction =
   | { type: "emoji"; emoji: "👍" | "👀" }
   | { type: "custom_emoji"; custom_emoji_id: string };
@@ -155,6 +160,19 @@ export class TelegramApi {
     });
   }
 
+  sendRichMessage(
+    chatId: number,
+    markdown: string,
+    options: SendRichMessageOptions = {},
+  ): Promise<TelegramMessage> {
+    return this.call("sendRichMessage", {
+      chat_id: chatId,
+      rich_message: { markdown },
+      ...(options.messageThreadId === undefined ? {} : { message_thread_id: options.messageThreadId }),
+      ...(options.disableNotification === undefined ? {} : { disable_notification: options.disableNotification }),
+    });
+  }
+
   editMessageText(
     chatId: number,
     messageId: number,
@@ -169,6 +187,17 @@ export class TelegramApi {
       ...(replyMarkup === undefined ? {} : { reply_markup: replyMarkup }),
       ...(parseMode === undefined ? {} : { parse_mode: parseMode }),
       disable_web_page_preview: true,
+    }).catch((error: unknown) => {
+      if (error instanceof TelegramApiError && error.message.includes("message is not modified")) return true;
+      throw error;
+    });
+  }
+
+  editRichMessage(chatId: number, messageId: number, markdown: string): Promise<TelegramMessage | true> {
+    return this.call<TelegramMessage | true>("editMessageText", {
+      chat_id: chatId,
+      message_id: messageId,
+      rich_message: { markdown },
     }).catch((error: unknown) => {
       if (error instanceof TelegramApiError && error.message.includes("message is not modified")) return true;
       throw error;

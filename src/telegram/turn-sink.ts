@@ -115,10 +115,16 @@ export class TelegramTurnSink implements TurnSink {
         this.chatId,
         this.threadId,
         this.options.streamUpdateIntervalMs,
-        update.parseMode,
+        update.format,
         update.kind !== "agent" && update.kind !== "error",
+        this.log,
       );
       this.messages.set(update.key, message);
+      if (update.completed) {
+        const messageId = await message.finish(update.text);
+        if (update.kind === "agent" && messageId !== null) this.lastAgentMessageId = messageId;
+        return;
+      }
       const messageId = await message.start(update.text);
       if (update.kind === "agent") this.lastAgentMessageId = messageId;
     } else if (!update.completed) {

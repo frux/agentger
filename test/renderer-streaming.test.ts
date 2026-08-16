@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ThreadItem } from "../src/app-server/generated/v2/ThreadItem.js";
+import { nullLogger } from "../src/logger.js";
 import { splitTelegramText, TurnRenderer } from "../src/telegram/renderer.js";
 import { StreamingMessage } from "../src/telegram/streaming-message.js";
 import { TelegramTurnSink } from "../src/telegram/turn-sink.js";
@@ -81,7 +82,7 @@ test("renderer emits compact commands and tools without Codex status prefixes", 
     kind: "command",
     text: "```bash\n/usr/bin/bash -lc \"sed -n '1,240p' /home/frux/.agents/skills/frux-voice/SKILL.md\"\n```",
     completed: true,
-    parseMode: "MarkdownV2",
+    format: "MarkdownV2",
   }]);
 
   const tool = renderer.consume({
@@ -113,6 +114,8 @@ test("turn sink sends each activity separately and reacts to the final agent mes
   let nextId = 10;
   const sent: Array<{ id: number; text: string; options: unknown }> = [];
   const edits: Array<{ id: number; text: string }> = [];
+  const richSent: Array<{ id: number; markdown: string; options: unknown }> = [];
+  const richEdits: Array<{ id: number; markdown: string }> = [];
   const reactions: Array<{ messageId: number; reaction: unknown }> = [];
   const telegram = {
     async sendMessage(_chatId: number, text: string, options?: unknown) {
@@ -122,6 +125,15 @@ test("turn sink sends each activity separately and reacts to the final agent mes
     },
     async editMessageText(_chatId: number, messageId: number, text: string) {
       edits.push({ id: messageId, text });
+      return true;
+    },
+    async sendRichMessage(_chatId: number, markdown: string, options?: unknown) {
+      const message = { message_id: nextId++ };
+      richSent.push({ id: message.message_id, markdown, options });
+      return message;
+    },
+    async editRichMessage(_chatId: number, messageId: number, markdown: string) {
+      richEdits.push({ id: messageId, markdown });
       return true;
     },
     async setMessageReaction(_chatId: number, messageId: number, reaction: unknown) {
@@ -167,22 +179,87 @@ test("turn sink sends each activity separately and reacts to the final agent mes
   await sink.drain();
 
   assert.deepEqual(sent.map(({ text }) => text), [
-    "Сначала проверю файлы.",
     "```bash\n/usr/bin/bash -lc \"sed -n '1,240p' /home/frux/.agents/skills/frux-voice/SKILL.md\"\n```",
-    "Изменения готовы.",
+  ]);
+  assert.deepEqual(richSent, [
+    { id: 10, markdown: "Сначала проверю файлы.", options: { messageThreadId: 2 } },
+    { id: 12, markdown: "Изменения готовы.", options: { messageThreadId: 2 } },
   ]);
   assert.deepEqual(edits, []);
-  assert.deepEqual(sent[0]?.options, { messageThreadId: 2 });
-  assert.deepEqual(sent[1]?.options, {
+  assert.deepEqual(richEdits, []);
+  assert.deepEqual(sent[0]?.options, {
     messageThreadId: 2,
     parseMode: "MarkdownV2",
     disableNotification: true,
   });
-  assert.deepEqual(sent[2]?.options, { messageThreadId: 2 });
   assert.deepEqual(reactions, [
     { messageId: 7, reaction: { type: "emoji", emoji: "👀" } },
     { messageId: 12, reaction: { type: "emoji", emoji: "👍" } },
   ]);
+});
+
+test("completed agent Markdown is sent as a Telegram rich message unchanged", async () => {
+  const markdown = [
+    "Готово, запись подтверждена:",
+    "",
+    "- **22 августа в 10:00**",
+    "- номер записи: **1087113**",
+    "",
+    "[Свободное расписание УГМК](https://www.ugmk-clinic.ru/record/)",
+  ].join("\n");
+  const rich: string[] = [];
+  const api = {
+    async sendMessage() { return { message_id: 9 }; },
+    async editMessageText() { return true; },
+    async sendRichMessage(_chatId: number, value: string) {
+      rich.push(value);
+      return { message_id: 10 };
+    },
+    async editRichMessage() { return true; },
+  };
+  const message = new StreamingMessage(api, 1, 2, 1, "RichMarkdown");
+  assert.equal(await message.finish(markdown), 10);
+  assert.deepEqual(rich, [markdown]);
+});
+
+test("streaming agent text stays editable and becomes rich on completion", async () => {
+  const plainEdits: string[] = [];
+  const richEdits: string[] = [];
+  const api = {
+    async sendMessage() { return { message_id: 9 }; },
+    async editMessageText(_chatId: number, _messageId: number, text: string) {
+      plainEdits.push(text);
+      return true;
+    },
+    async sendRichMessage() { return { message_id: 10 }; },
+    async editRichMessage(_chatId: number, _messageId: number, markdown: string) {
+      richEdits.push(markdown);
+      return true;
+    },
+  };
+  const message = new StreamingMessage(api, 1, 2, 10, "RichMarkdown");
+  await message.start("Начало");
+  message.update("Начало **жирного");
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await message.finish("Начало **жирного текста**");
+  assert.deepEqual(plainEdits, ["Начало **жирного"]);
+  assert.deepEqual(richEdits, ["Начало **жирного текста**"]);
+});
+
+test("rich message rejection falls back to lossless plain text", async () => {
+  const plain: string[] = [];
+  const api = {
+    async sendMessage(_chatId: number, text: string) {
+      plain.push(text);
+      return { message_id: 9 };
+    },
+    async editMessageText() { return true; },
+    async sendRichMessage() { throw new Error("unsupported rich message"); },
+    async editRichMessage() { throw new Error("unsupported rich message"); },
+  };
+  const message = new StreamingMessage(api, 1, 2, 1, "RichMarkdown", false, nullLogger);
+  assert.equal(await message.finish("Сохрани **исходную разметку**"), 9);
+  assert.deepEqual(plain, ["Сохрани **исходную разметку**"]);
 });
 
 test("turn sink uses the configured custom completion reaction", async () => {
@@ -190,6 +267,8 @@ test("turn sink uses the configured custom completion reaction", async () => {
   const telegram = {
     async sendMessage() { return { message_id: 50 }; },
     async editMessageText() { return true; },
+    async sendRichMessage() { return { message_id: 50 }; },
+    async editRichMessage() { return true; },
     async setMessageReaction(_chatId: number, _messageId: number, reaction: unknown) {
       reactions.push(reaction);
       return true as const;
