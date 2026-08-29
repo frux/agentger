@@ -3,7 +3,7 @@
 Agentger turns Telegram topics into remote UIs for long-running Codex agents. It supervises `codex app-server --stdio` directly and does not use `@openai/codex-sdk`.
 
 ```sh
-npm install -g https://github.com/frux/agentger/releases/download/v0.5.2/agentger-0.5.2.tgz
+npm install -g https://github.com/frux/agentger/releases/download/v0.6.0/agentger-0.6.0.tgz
 agentger init
 # edit .env
 agentger doctor
@@ -81,7 +81,7 @@ The runtime and ready-to-run Q8 model are published by NVIDIA. `agentger doctor`
 Install the ready-to-run package from GitHub Releases:
 
 ```sh
-npm install -g https://github.com/frux/agentger/releases/download/v0.5.2/agentger-0.5.2.tgz
+npm install -g https://github.com/frux/agentger/releases/download/v0.6.0/agentger-0.6.0.tgz
 agentger --version
 ```
 
@@ -190,7 +190,8 @@ The Bot API has no native read-receipt method for ordinary bots in supergroups. 
 ## Telegram commands
 
 - `/codex-status` — thread, cwd, status, model, queue, token use, and app-server health;
-- `/codex-stop` — interrupt the active turn only;
+- `/esc` — interrupt the active turn only;
+- `/codex-stop` — compatibility alias for `/esc`;
 - `/codex-diff` — latest aggregated turn diff;
 - `/codex-history` — persisted history;
 - `/codex-close` — remove only the Telegram binding; a later message creates a fresh Codex thread;

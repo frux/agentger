@@ -67,6 +67,7 @@ export class TelegramCommands {
       case "codex-status":
         await this.status(message);
         return true;
+      case "esc":
       case "codex-stop":
         await this.stop(message);
         return true;
@@ -225,7 +226,8 @@ export class TelegramCommands {
       "Новый незарезервированный topic автоматически создаёт Codex session.",
       "",
       "/codex-status — состояние",
-      "/codex-stop — прервать активный turn",
+      "/esc — прервать активный turn",
+      "/codex-stop — то же самое (совместимость)",
       "/codex-diff — последний aggregated diff",
       "/codex-history — persisted history",
       "/codex-close — удалить только Telegram binding",
