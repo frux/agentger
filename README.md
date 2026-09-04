@@ -3,7 +3,7 @@
 Agentger turns Telegram topics into remote UIs for long-running Codex agents. It supervises `codex app-server --stdio` directly and does not use `@openai/codex-sdk`.
 
 ```sh
-npm install -g https://github.com/frux/agentger/releases/download/v0.6.0/agentger-0.6.0.tgz
+npm install -g agentger
 agentger init
 # edit .env
 agentger doctor
@@ -78,14 +78,14 @@ The runtime and ready-to-run Q8 model are published by NVIDIA. `agentger doctor`
 
 ## Install as a Node.js CLI
 
-Install the ready-to-run package from GitHub Releases:
+Install the ready-to-run package from the npm registry:
 
 ```sh
-npm install -g https://github.com/frux/agentger/releases/download/v0.6.0/agentger-0.6.0.tgz
+npm install -g agentger
 agentger --version
 ```
 
-The release tarball already contains compiled JavaScript, so installation does not need TypeScript or an npm account. After the package is published to the npm registry, the shorter `npm install -g agentger` command will work as well.
+The npm package already contains compiled JavaScript, so installation does not need TypeScript. Agentger is public and installing it does not require an npm account.
 
 Create a working directory and configuration:
 
